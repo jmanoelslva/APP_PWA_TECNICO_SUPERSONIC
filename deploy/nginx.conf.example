@@ -1,0 +1,120 @@
+# Exemplo de vhost Nginx para tecnico.provedorsupersonic.com.br
+#
+# Serve o build estático do Vite (npm run build -> frontend/dist) e faz o
+# reverse proxy de /api/* para o BACKEND PRÓPRIO (FastAPI/uvicorn, rodando
+# como serviço systemd em 127.0.0.1:8000 — ver deploy/install.sh) — não
+# para o Controllr direto (quem fala com o Controllr é o backend, com o
+# cookie de sessão do técnico logado, nunca o navegador).
+#
+# Diferente do vhost do app cliente (cliente.provedorsupersonic.com.br): não precisa
+# de "proxy_cookie_domain" nem de proxiar /public, /common, /assets para o
+# Controllr — o cookie de sessão (TECSESSION) é emitido pelo NOSSO
+# backend sem domínio fixo, então já nasce com o domínio certo
+# (tecnico.provedorsupersonic.com.br) por vir da mesma origem; e não existe HTML do
+# Controllr sendo repassado direto para o navegador aqui, só JSON.
+#
+# Ajuste os caminhos de certificado (ssl_certificate/ssl_certificate_key),
+# o "root" e a porta do backend (127.0.0.1:8000) para os valores reais —
+# install.sh já faz essas substituições sozinho a partir deste arquivo.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name tecnico.provedorsupersonic.com.br;
+
+    # Renovação do certificado (certbot --webroot): o desafio do Let's
+    # Encrypt fica em HTTP. Sem isto ele seria redirecionado para o HTTPS,
+    # cairia no index.html do app e a renovação falharia.
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot-acme;
+    }
+
+    # Todo o resto vai para HTTPS.
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name tecnico.provedorsupersonic.com.br;
+
+    ssl_certificate     /etc/letsencrypt/live/tecnico.provedorsupersonic.com.br/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/tecnico.provedorsupersonic.com.br/privkey.pem;
+
+    root /var/www/supersonic-tecnico/dist;
+    index index.html;
+
+    # Coletor de OLTs (opcional, projeto COLETA-OLT): quando instalado no modo
+    # "dentro do app técnico", ele grava aqui o trecho que publica /olt/ (com
+    # o login do técnico). Sem o coletor o glob não acha nada e o app segue
+    # igual — não remova esta linha, o instalador do técnico a mantém.
+    include /etc/coletor-olt/web/nginx-*.conf;
+
+    # SPA: qualquer rota que não bata em um arquivo real cai no
+    # index.html (o roteamento de fato acontece no react-router-dom, no
+    # navegador) — sem isso, recarregar a página numa rota interna (ex:
+    # /suporte/123) dá 404.
+    location / {
+        try_files $uri /index.html;
+
+        # 'unsafe-inline' NÃO é necessário em style-src: o React seta
+        # estilo inline via propriedade do DOM (CSSOM), não via atributo
+        # "style=" no HTML nem <style> — isso não é bloqueado por CSP.
+        # connect-src inclui api.ipify.org/api6.ipify.org — a ferramenta
+        # "Meu IP" chama esses dois direto do navegador (endpoints
+        # públicos, sem chave) para descobrir o IPv4/IPv6 do dispositivo.
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com; connect-src 'self' https://api.ipify.org https://api6.ipify.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        # geolocation=(self): usado na captura de localização do CPE em
+        # Endereço/Localização (navigator.geolocation) e no
+        # compartilhamento de localização da OS.
+        # camera=(self): usado no leitor de código de barras/QR da tela de
+        # ONU (getUserMedia + BarcodeDetector, ver LeitorCodigoBarras.tsx)
+        # — diferente do anexo de foto da OS, que usa
+        # <input type="file" capture="environment"> (DetalheOS.tsx) e não
+        # precisa de permissão via API do navegador. O resto continua
+        # desligado.
+        add_header Permissions-Policy "geolocation=(self), camera=(self), microphone=(), payment=(), usb=()" always;
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+        # NUNCA cachear o que passa por aqui (index.html, sw.js,
+        # workbox-*.js, manifest.webmanifest) — é assim que o navegador
+        # descobre que existe uma versão nova para instalar (mesmo motivo
+        # documentado no README do app cliente, "Aviso de nova versão").
+        # Os arquivos em /assets/ têm hash no nome, então esses sim podem
+        # — e devem — cachear por muito tempo (ver location abaixo).
+        add_header Cache-Control "no-cache" always;
+    }
+
+    # Arquivos com hash no nome (ex: index-D4VyL3qq.js) — o nome muda
+    # sempre que o conteúdo muda, então "immutable" por 1 ano é seguro.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+    }
+
+    # Reverse proxy para o backend PRÓPRIO (FastAPI local) — não para o
+    # Controllr. "/api" some da URL antes de chegar no backend (as rotas
+    # lá são tipo /auth/login, não /api/auth/login — mesma reescrita que
+    # o vite.config.ts faz em desenvolvimento).
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000/;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # "Atualizar agora" na tela de ONU reconecta a OLT e espera ela
+        # recarregar antes de reler (~45s de espera de propósito, ver
+        # backend/app/routers/onu.py) — sem aumentar o timeout padrão do
+        # Nginx (60s já seria justo, e outros proxies/CDNs na frente
+        # podem ter um padrão bem menor), essa chamada específica corre
+        # risco de ser cortada antes do backend responder.
+        proxy_read_timeout 90s;
+        proxy_send_timeout 90s;
+    }
+}

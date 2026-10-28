@@ -1,0 +1,398 @@
+.suporte-tela {
+  max-width: var(--largura-conteudo);
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.suporte-abas {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.suporte-tela .aba-chip {
+  flex: 1;
+  height: 40px;
+  border-radius: 20px;
+  border: 1.5px solid var(--cor-suporte);
+  background: transparent;
+  color: var(--cor-suporte);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.suporte-tela .aba-chip.ativa {
+  background: var(--cor-suporte);
+  color: var(--cor-branco-fixo);
+}
+
+.suporte-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ticket-card {
+  background: var(--cor-superficie);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--sombra-card);
+  cursor: pointer;
+}
+
+/* Só nesta tela — ".ticket-card" também é reaproveitada em BuscaCliente.tsx
+   (cards de resultado do cliente), que não deve ganhar o acento de OS. */
+.suporte-lista .ticket-card {
+  border-left: 4px solid var(--cor-suporte);
+}
+
+.ticket-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ticket-assunto {
+  font-weight: 700;
+  color: var(--cor-texto);
+  font-size: 15px;
+}
+
+.ticket-status-badge {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--cor-branco-fixo);
+  border-radius: 12px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+/* Etapa da OS em aberto: tons claros com texto da mesma cor, para o
+   vermelho de "Atrasada" continuar sendo o que chama atenção. */
+.badge-agendada,
+.badge-respondida,
+.badge-iniciada {
+  color: var(--cor-selo);
+  background: color-mix(in srgb, var(--cor-selo) 14%, transparent);
+}
+
+.badge-agendada {
+  --cor-selo: var(--cor-primaria-clara);
+}
+
+.badge-respondida {
+  --cor-selo: var(--cor-alerta);
+}
+
+.badge-iniciada {
+  --cor-selo: var(--cor-suporte);
+}
+
+:root[data-theme='light'] .badge-agendada {
+  --cor-selo: var(--cor-primaria);
+}
+
+:root[data-theme='light'] .badge-respondida {
+  --cor-selo: #b26a00;
+}
+
+.badge-fechado {
+  background: var(--cor-sucesso);
+}
+
+.badge-cancelada {
+  background: var(--cor-texto-desabilitado);
+}
+
+.suporte-lista .ticket-card-atrasada {
+  border-left-color: var(--cor-erro);
+}
+
+.ticket-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ticket-quando {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cor-texto);
+}
+
+.ticket-quando-atrasada {
+  color: var(--cor-erro);
+}
+
+.ticket-atrasada {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cor-erro) 14%, transparent);
+}
+
+.ticket-cliente {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cor-texto-secundario);
+}
+
+.ticket-protocolo,
+.ticket-data {
+  margin: 6px 0 0;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--cor-texto-terciario);
+}
+
+.ticket-descricao {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--cor-texto-secundario);
+}
+
+.suporte-carregar-mais {
+  display: block;
+  margin: 20px auto 0;
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 20px;
+  border: 1px solid var(--cor-borda);
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Filtros da lista de OS (busca, quando, minhas, etapa e serviço). */
+.suporte-filtros {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.suporte-busca {
+  position: relative;
+}
+
+.suporte-busca-icone {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--cor-texto-terciario);
+  pointer-events: none;
+}
+
+.suporte-busca input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px 0 42px;
+  border-radius: 14px;
+  border: 1.5px solid var(--cor-borda);
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  font-size: 14px;
+}
+
+.suporte-busca input:focus,
+.suporte-selects select:focus {
+  outline: none;
+  border-color: var(--cor-suporte);
+}
+
+.suporte-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.suporte-chip {
+  /* Cor de cada botão (--cor-chip): a mesma ideia dos selos da lista —
+     atrasada em vermelho, hoje em azul. Tons escuros o bastante para o
+     texto branco do botão escolhido ficar legível. */
+  --cor-chip: var(--cor-suporte);
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  border: 1.5px solid color-mix(in srgb, var(--cor-chip) 50%, transparent);
+  background: color-mix(in srgb, var(--cor-chip) 8%, var(--cor-superficie));
+  color: var(--cor-chip);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.suporte-chip.ativo {
+  background: var(--cor-chip);
+  border-color: var(--cor-chip);
+  color: var(--cor-branco-fixo);
+}
+
+/* Fixo (não a --cor-suporte, que fica verde-claro no tema escuro). */
+.suporte-chip-todas {
+  --cor-chip: #0f8a45;
+}
+
+.suporte-chip-hoje {
+  --cor-chip: var(--cor-primaria);
+}
+
+.suporte-chip-atrasadas {
+  --cor-chip: #d32f2f;
+}
+
+.suporte-chip-proximas {
+  --cor-chip: #5e35b1;
+}
+
+/* No tema escuro o texto do botão não escolhido precisa de tom mais claro. */
+:root[data-theme='dark'] .suporte-chip:not(.ativo) {
+  color: color-mix(in srgb, var(--cor-chip) 60%, white);
+}
+
+.suporte-selects {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.suporte-selects select {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1.5px solid var(--cor-borda);
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  font-size: 13px;
+}
+
+.suporte-resumo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cor-texto-secundario);
+}
+
+.suporte-limpar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--cor-suporte);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Lista em linha do tempo: grupos por dia, hora numa coluna fixa à
+   esquerda, rota a um toque à direita — cabem mais OS por tela. */
+.suporte-grupo + .suporte-grupo {
+  margin-top: 18px;
+}
+
+.suporte-grupo-titulo {
+  margin: 0 0 8px 2px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--cor-texto-terciario);
+}
+
+.suporte-lista-os {
+  gap: 8px;
+}
+
+.suporte-lista .os-linha {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: stretch;
+  padding: 0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* A tela já usa toque com escala; numa linha larga 0.96 "pula" demais. */
+.suporte-lista .os-linha:active {
+  transform: scale(0.98);
+}
+
+.os-linha-hora {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px 4px;
+  border-right: 1px solid var(--cor-borda-suave);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--cor-texto);
+  font-variant-numeric: tabular-nums;
+}
+
+.os-linha-hora small {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ticket-card-atrasada .os-linha-hora {
+  color: var(--cor-erro);
+  background: color-mix(in srgb, var(--cor-erro) 8%, transparent);
+}
+
+.os-linha-meio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.os-linha-meio .ticket-assunto,
+.os-linha-meio .ticket-cliente {
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.os-linha-meio .ticket-status-badge {
+  margin-top: 2px;
+  padding: 2px 8px;
+}
+
+.os-linha-rota {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  border-left: 1px solid var(--cor-borda-suave);
+  color: var(--cor-primaria);
+}

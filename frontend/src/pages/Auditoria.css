@@ -1,0 +1,227 @@
+.auditoria-tela {
+  max-width: var(--largura-conteudo);
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.auditoria-filtros {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    'de tecnico'
+    'ate botao';
+  gap: 10px;
+  align-items: end;
+  background: var(--cor-superficie);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--sombra-card);
+  margin-bottom: 16px;
+}
+
+.auditoria-filtros label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--cor-texto-terciario);
+}
+
+.auditoria-filtros input,
+.auditoria-filtros select {
+  height: 42px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1.5px solid var(--cor-borda);
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+  font-size: 14px;
+  min-width: 0;
+}
+
+.auditoria-filtro-de {
+  grid-area: de;
+}
+
+.auditoria-filtro-ate {
+  grid-area: ate;
+}
+
+.auditoria-filtro-tecnico {
+  grid-area: tecnico;
+}
+
+.auditoria-filtro-botao {
+  grid-area: botao;
+}
+
+.auditoria-filtros .botao {
+  height: 42px;
+}
+
+.auditoria-erro {
+  color: var(--cor-texto-secundario);
+  text-align: center;
+  padding: 24px 0;
+}
+
+.auditoria-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.auditoria-chip {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--cor-borda);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-secundario);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.auditoria-chip[aria-pressed='true'] {
+  border-color: var(--cor-ferramentas);
+  background: color-mix(in srgb, var(--cor-ferramentas) 14%, var(--cor-superficie));
+  color: var(--cor-texto);
+  font-weight: 600;
+}
+
+.auditoria-dia {
+  margin-bottom: 18px;
+}
+
+.auditoria-dia-titulo {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 4px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cor-texto-secundario);
+}
+
+.auditoria-dia-titulo span:last-child {
+  font-weight: 400;
+  color: var(--cor-texto-terciario);
+}
+
+.auditoria-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auditoria-item {
+  background: var(--cor-superficie);
+  border-radius: 14px;
+  border: 1.5px solid transparent;
+  padding: 12px 14px;
+  box-shadow: var(--sombra-card);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.auditoria-item-grave {
+  border-color: color-mix(in srgb, var(--cor-erro) 45%, transparent);
+}
+
+.auditoria-topo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auditoria-icone {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--acao-cor);
+  background: color-mix(in srgb, var(--acao-cor) 15%, var(--cor-superficie));
+}
+
+.auditoria-titulo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.auditoria-titulo span {
+  font-size: 12px;
+  color: var(--cor-texto-terciario);
+  overflow-wrap: anywhere;
+}
+
+.auditoria-mudancas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--cor-fundo);
+}
+
+.auditoria-mudanca {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 13px;
+}
+
+.auditoria-mudanca svg {
+  color: var(--cor-texto-terciario);
+}
+
+.auditoria-rotulo {
+  color: var(--cor-texto-terciario);
+  font-size: 11px;
+  flex-basis: 100%;
+}
+
+.auditoria-antes {
+  color: var(--cor-erro);
+  overflow-wrap: anywhere;
+}
+
+.auditoria-depois {
+  color: var(--cor-sucesso);
+  overflow-wrap: anywhere;
+}
+
+.auditoria-nota {
+  font-size: 12px;
+  color: var(--cor-texto-terciario);
+}
+
+.auditoria-detalhes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px 14px;
+  margin: 0;
+}
+
+.auditoria-detalhes dt {
+  font-size: 11px;
+  color: var(--cor-texto-terciario);
+}
+
+.auditoria-detalhes dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cor-texto-secundario);
+  overflow-wrap: anywhere;
+}

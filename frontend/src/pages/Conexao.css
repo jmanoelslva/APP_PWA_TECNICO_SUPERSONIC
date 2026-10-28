@@ -1,0 +1,398 @@
+.conexao-tela {
+  max-width: var(--largura-conteudo);
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.conexao-card {
+  background: var(--cor-superficie);
+  border-radius: 16px;
+  border-left: 4px solid var(--cor-conexao);
+  padding: 18px;
+  box-shadow: var(--sombra-card);
+  margin-bottom: 16px;
+}
+
+.conexao-card h2 {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cor-texto-secundario);
+  margin: 0 0 12px;
+}
+
+.conexao-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--cor-borda-suave);
+  font-size: 13px;
+}
+
+.conexao-linha:last-child {
+  border-bottom: none;
+}
+
+.conexao-linha span {
+  color: var(--cor-texto-terciario);
+}
+
+.conexao-linha strong {
+  color: var(--cor-texto);
+  font-weight: 700;
+  text-align: right;
+}
+
+.conexao-campo {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--cor-borda-suave);
+}
+
+.conexao-campo:last-child {
+  border-bottom: none;
+}
+
+.conexao-campo > span {
+  display: block;
+  font-size: 12px;
+  color: var(--cor-texto-terciario);
+  margin-bottom: 4px;
+}
+
+.conexao-campo-valor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.conexao-campo-valor strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 14px;
+  color: var(--cor-texto);
+}
+
+.conexao-campo-valor button {
+  border: none;
+  background: var(--cor-fundo);
+  color: var(--cor-texto-secundario);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.conexao-card-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin-bottom: 4px;
+  color: var(--cor-texto-terciario);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.conexao-card-toggle h2 {
+  margin: 0;
+}
+
+.conexao-historico-toggle {
+  /* Sem border-top de propósito — a linha "Última autenticação" logo
+     acima já termina com um separador (deixava de ser :last-child na
+     hora que esse botão passou a vir depois dela), então um border-top
+     aqui virava uma segunda linha coladinha na primeira. */
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.conexao-historico-intervalo {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.conexao-historico-intervalo .conexao-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Cada sessão do histórico como um bloco próprio (em vez de linhas soltas
+   dividindo o card inteiro) — mais fácil de separar visualmente uma
+   sessão da outra numa lista que pode ter vários itens. */
+.conexao-historico-item {
+  background: var(--cor-fundo);
+  border-radius: 12px;
+  padding: 4px 12px;
+  margin-top: 10px;
+}
+
+.conexao-historico-item:first-of-type {
+  margin-top: 8px;
+}
+
+.conexao-sessao-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.conexao-sessao-topo h2 {
+  margin: 0;
+}
+
+.conexao-input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--cor-borda-suave);
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+  font-size: 14px;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.conexao-input:focus {
+  outline: none;
+  border-color: var(--cor-conexao);
+}
+
+.conexao-campo .conexao-input {
+  width: 100%;
+}
+
+.conexao-textarea {
+  height: auto;
+  padding: 8px 10px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.conexao-card > .botao {
+  margin-top: 8px;
+}
+
+.conexao-combobox {
+  position: relative;
+}
+
+.conexao-combobox-lista {
+  position: absolute;
+  z-index: 5;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--cor-superficie);
+  border: 1.5px solid var(--cor-borda);
+  border-radius: 10px;
+  box-shadow: var(--sombra-card);
+}
+
+.conexao-combobox-lista li button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--cor-texto);
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.conexao-combobox-lista li button:hover {
+  background: var(--cor-fundo);
+}
+
+.conexao-combobox-distancia {
+  color: var(--cor-texto-terciario);
+  font-size: 11px;
+}
+
+.conexao-combobox-precisao {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--cor-texto-terciario);
+}
+
+.conexao-combobox-vazio {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--cor-texto-terciario);
+}
+
+.mapa-cto {
+  margin-top: 10px;
+}
+
+.mapa-cto-mapa {
+  height: 200px;
+  border-radius: 10px;
+  border: 1.5px solid var(--cor-borda);
+  overflow: hidden;
+  background: var(--cor-fundo);
+  /* Abaixo da lista do combobox de CTO (z-index 5). */
+  position: relative;
+  z-index: 0;
+}
+
+.mapa-cto-moldura {
+  position: relative;
+}
+
+/* Fora do mapa (z-index 0 isola os controles do Leaflet), então z-index 1
+   já fica por cima. */
+.mapa-cto-localizar {
+  position: absolute;
+  right: 10px;
+  bottom: 22px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  background: #ffffff;
+  color: #1a73e8;
+  cursor: pointer;
+}
+
+.mapa-cto-mapa-ampliado {
+  height: 60vh;
+}
+
+.mapa-cto-carregando {
+  margin-top: 10px;
+}
+
+.mapa-cto-rodape {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.mapa-cto-rodape button,
+.mapa-cto-rodape a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--cor-conexao);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mapa-cto-legenda {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: auto;
+  color: var(--cor-texto-terciario);
+}
+
+.mapa-cto-legenda i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-left: 4px;
+}
+
+.mapa-cto-aviso {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--cor-texto-terciario);
+}
+
+.conexao-sessao-vazio {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--cor-texto-terciario);
+}
+
+.conexao-busca label {
+  display: block;
+  font-size: 12px;
+  color: var(--cor-texto-terciario);
+  margin-bottom: 8px;
+}
+
+.conexao-busca-campo {
+  display: flex;
+  gap: 8px;
+}
+
+.conexao-busca-campo input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--cor-borda);
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+  font-size: 14px;
+}
+
+.conexao-busca-campo input:focus {
+  outline: none;
+  border-color: var(--cor-conexao);
+}
+
+.conexao-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--cor-conexao);
+  font-weight: 700;
+  text-decoration: none;
+  text-align: right;
+}
+
+.conexao-btn-link {
+  border: none;
+  background: var(--cor-fundo);
+  color: var(--cor-conexao);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  text-decoration: none;
+}

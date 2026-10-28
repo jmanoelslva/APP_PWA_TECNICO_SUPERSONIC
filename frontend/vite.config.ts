@@ -1,0 +1,79 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
+
+const { version } = JSON.parse(
+  readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf-8'),
+) as { version: string }
+
+// https://vite.dev/config/
+export default defineConfig({
+  // Versão exibida na tela de login (Login.tsx) — segue o
+  // Versionamento Semântico (https://semver.org/lang/pt-BR/) e a
+  // fonte da verdade é o campo "version" do package.json.
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      // Registro manual via useRegisterSW (StatusBanners.tsx) — mesmo
+      // motivo do app cliente: skipWaiting/clientsClaim trocam o service
+      // worker sozinhos, mas isso não troca os módulos JS já carregados
+      // numa aba aberta, então ainda é preciso avisar e deixar o técnico
+      // decidir a hora de recarregar.
+      injectRegister: false,
+      workbox: {
+        // Nunca cachear /api/* — dados dinâmicos e ligados à sessão do
+        // técnico (clientes, OS, conexão, ONU).
+        // /olt/ é o Coletor de OLTs (outro app, mesmo domínio, opcional): o
+        // service worker não pode responder essas navegações com o
+        // index.html do técnico.
+        navigateFallbackDenylist: [/^\/api\//, /^\/olt(\/|$)/],
+        skipWaiting: true,
+        clientsClaim: true,
+        // Avisos de OS nova (Web Push): o "push" e o toque no aviso ficam em
+        // public/push-sw.js, carregado dentro do service worker gerado.
+        importScripts: ['push-sw.js'],
+      },
+      manifest: {
+        name: 'SUPERSONIC',
+        short_name: 'SUPERSONIC',
+        description: 'Ferramentas de campo para técnicos SUPERSONIC: dados de cliente, endereço, conexão, ONU e OS.',
+        lang: 'pt-BR',
+        id: '/',
+        start_url: '/',
+        display: 'standalone',
+        // Cor da tela de abertura (só aceita uma): a escura pisca menos que
+        // um clarão para quem usa o tema escuro; o index.html pinta o fundo
+        // do tema certo logo em seguida.
+        background_color: '#121316',
+        theme_color: '#0d3bd8',
+        icons: [
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+    }),
+  ],
+  server: {
+    // Escuta em todas as interfaces de rede — dá para abrir o app a partir
+    // do celular do técnico na mesma Wi-Fi usando o IP local da máquina.
+    host: true,
+    proxy: {
+      // Em desenvolvimento, o navegador só fala com o Vite — ele repassa
+      // para o backend FastAPI local. Sem cookieDomainRewrite/xfwd: aqui é
+      // proxy simples para o NOSSO backend (não o Controllr direto), que já
+      // roda na mesma máquina.
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
+})

@@ -1,0 +1,132 @@
+# Exemplo de VirtualHost Apache para tecnico.provedorsupersonic.com.br
+#
+# Serve o build estático do Vite (npm run build -> frontend/dist) e faz o
+# reverse proxy de /api/* para o BACKEND PRÓPRIO (FastAPI/uvicorn, rodando
+# como serviço systemd em 127.0.0.1:8000 — ver deploy/install.sh), não
+# para o Controllr direto. Requer os módulos: proxy, proxy_http, headers,
+# rewrite, ssl (a2enmod proxy proxy_http headers rewrite ssl).
+#
+# Diferente do vhost do app cliente (cliente.provedorsupersonic.com.br): não precisa
+# reescrever domínio de cookie nem repassar /public, /common, /assets para o
+# Controllr — o cookie de sessão (TECSESSION) já nasce com o domínio
+# certo (é o nosso backend quem emite, sem domínio fixo) e não existe
+# HTML do Controllr sendo repassado direto para o navegador aqui, só JSON.
+#
+# Ajuste os caminhos de certificado, o DocumentRoot e a porta do backend
+# (127.0.0.1:8000) para os valores reais — install.sh já faz essas
+# substituições sozinho a partir deste arquivo.
+
+<VirtualHost *:80>
+    ServerName tecnico.provedorsupersonic.com.br
+
+    # Renovação do certificado (certbot --webroot): o desafio do Let's
+    # Encrypt fica em HTTP. Sem isto ele seria redirecionado para o HTTPS,
+    # cairia no index.html do app e a renovação falharia.
+    Alias /.well-known/acme-challenge/ /var/www/certbot-acme/.well-known/acme-challenge/
+    <Directory /var/www/certbot-acme>
+        Require all granted
+    </Directory>
+
+    # Todo o resto vai para HTTPS.
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+    RewriteRule ^ https://tecnico.provedorsupersonic.com.br%{REQUEST_URI} [R=301,L]
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName tecnico.provedorsupersonic.com.br
+
+    SSLEngine on
+    SSLCertificateFile      /etc/letsencrypt/live/tecnico.provedorsupersonic.com.br/fullchain.pem
+    SSLCertificateKeyFile   /etc/letsencrypt/live/tecnico.provedorsupersonic.com.br/privkey.pem
+
+    DocumentRoot /var/www/supersonic-tecnico/dist
+
+    # Coletor de OLTs (opcional, projeto COLETA-OLT): quando instalado no modo
+    # "dentro do app técnico", ele grava aqui o trecho que publica /olt/ (com
+    # o login do técnico). IncludeOptional ignora se não existir — sem o
+    # coletor o app segue igual.
+    IncludeOptional /etc/coletor-olt/web/apache-*.conf
+
+    # OBRIGATÓRIO: o pacote apache2 do Debian já vem com um
+    # "Alias /icons/ ..." global (mods-enabled/alias.conf, usado para os
+    # ícones de listagem de diretório) que intercepta /icons/* antes de
+    # chegar na pasta do próprio app — sem isso, os ícones do manifest do
+    # PWA (frontend/public/icons/) dão 404 e o navegador nunca oferece
+    # "Instalar app". Este Alias mais específico sobrepõe o padrão do
+    # sistema (mesmo ajuste feito no vhost do app cliente).
+    Alias /icons /var/www/supersonic-tecnico/dist/icons
+
+    <Directory /var/www/supersonic-tecnico/dist>
+        Options -Indexes
+        AllowOverride None
+        Require all granted
+
+        # 'unsafe-inline' NÃO é necessário em style-src: o React seta
+        # estilo inline via propriedade do DOM (CSSOM), não via atributo
+        # "style=" no HTML nem <style> — isso não é bloqueado por CSP.
+        # connect-src inclui api.ipify.org/api6.ipify.org — a ferramenta
+        # "Meu IP" chama esses dois direto do navegador (endpoints
+        # públicos, sem chave) para descobrir o IPv4/IPv6 do dispositivo.
+        Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com; connect-src 'self' https://api.ipify.org https://api6.ipify.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+        Header always set X-Frame-Options "DENY"
+        Header always set X-Content-Type-Options "nosniff"
+        Header always set Referrer-Policy "strict-origin-when-cross-origin"
+        # geolocation=(self): usado na captura de localização do CPE em
+        # Endereço/Localização (navigator.geolocation, DetalheCliente.tsx).
+        # camera=(self): usado no leitor de código de barras/QR da tela de
+        # ONU (getUserMedia + BarcodeDetector, ver LeitorCodigoBarras.tsx)
+        # — diferente do anexo de foto da OS, que usa
+        # <input type="file" capture="environment"> (DetalheOS.tsx) e não
+        # precisa de permissão via API do navegador. O resto continua
+        # desligado.
+        Header always set Permissions-Policy "geolocation=(self), camera=(self), microphone=(), payment=(), usb=()"
+        Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+        # NUNCA cachear o que vem daqui (index.html, sw.js, workbox-*.js,
+        # manifest.webmanifest) — é assim que o navegador descobre que
+        # existe uma versão nova para instalar (mesmo motivo documentado
+        # no README do app cliente, "Aviso de nova versão"). O
+        # <Directory dist/assets> abaixo sobrescreve isso para os arquivos
+        # com hash no nome, que sim podem — e devem — cachear por muito
+        # tempo.
+        Header always set Cache-Control "no-cache"
+
+        RewriteEngine On
+        RewriteBase /
+
+        # SPA: qualquer rota que não bata em um arquivo real cai no
+        # index.html (o roteamento de fato acontece no react-router-dom)
+        # — exceto /api/*, que precisa continuar para o ProxyPass abaixo.
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteCond %{REQUEST_URI} !^/api/
+        RewriteRule . /index.html [L]
+    </Directory>
+
+    # Sobrescreve o "no-cache" do <Directory> acima só para os arquivos do
+    # build com hash no nome (ex: index-D4VyL3qq.js) — o nome muda sempre
+    # que o conteúdo muda, então "immutable" por 1 ano é seguro de
+    # verdade aqui. Precisa vir DEPOIS do <Directory dist> acima — o
+    # Apache mescla configuração de diretório do menos para o mais
+    # específico.
+    <Directory /var/www/supersonic-tecnico/dist/assets>
+        Header always set Cache-Control "public, max-age=31536000, immutable"
+    </Directory>
+
+    # Reverse proxy para o backend PRÓPRIO (FastAPI local, via systemd) —
+    # não para o Controllr. "/api" some da URL antes de chegar no backend
+    # (as rotas lá são tipo /auth/login, não /api/auth/login).
+    ProxyPreserveHost off
+    # IP real do técnico para a auditoria e o limite de login (ver
+    # backend/app/audit.py). "expr=" pega o IP da conexão; o antigo
+    # "%{REMOTE_ADDR}e" chegava como "(null)".
+    RequestHeader set X-Real-IP "expr=%{REMOTE_ADDR}"
+
+    # "Atualizar agora" na tela de ONU reconecta a OLT e espera ela
+    # recarregar antes de reler (~45s de espera de propósito, ver
+    # backend/app/routers/onu.py) — timeout maior que o padrão do Apache
+    # (60s) para essa chamada não ser cortada antes do backend responder.
+    ProxyPass        /api/ http://127.0.0.1:8000/ timeout=90
+    ProxyPassReverse /api/ http://127.0.0.1:8000/
+</VirtualHost>

@@ -1,0 +1,369 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  font-family: 'Plus Jakarta Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light dark;
+
+  /* Marca — paleta azul/operacional, para diferenciar visualmente do
+     portal do cliente (laranja/vermelho). */
+  --cor-primaria: #0d3bd8;
+  --cor-primaria-escura: #082a9e;
+  --cor-primaria-clara: #4d72f0;
+  --cor-primaria-gradiente-fim: #061d6b;
+
+  /* Superfícies */
+  --cor-fundo: #f5f5f5;
+  --cor-superficie: #ffffff;
+  --cor-borda: #e0e0e0;
+  --cor-borda-suave: #eeeeee;
+  --cor-borda-clara: #f0f0f0;
+  /* Branco fixo — para texto/ícone sobre um fundo de cor sólida (botão
+     gradiente, badge, cabeçalho). NUNCA redefinido no bloco escuro. */
+  --cor-branco-fixo: #ffffff;
+
+  /* Texto */
+  --cor-texto: #333333;
+  --cor-texto-secundario: #666666;
+  /* Cinzas de apoio escurecidos para passar no contraste mínimo (WCAG AA,
+     4.5:1) sobre o branco e o fundo — #999 ficava ilegível sob sol. */
+  --cor-texto-terciario: #6e6e6e;
+  --cor-texto-fraco: #757575;
+  --cor-texto-desabilitado: #757575;
+
+  /* Status/feedback */
+  /* Sucesso/erro/conexão/ONU escurecidos no claro para passar no contraste
+     (texto branco sobre selo: 4.5:1; ícone branco sobre fundo: 3:1) — sob
+     sol, os tons antigos sumiam. No escuro ficam os tons claros (abaixo). */
+  --cor-sucesso: #2e7d32;
+  --cor-sucesso-vivo: #20b957;
+  --cor-alerta: #ff9800;
+  --cor-atencao: #ffc107;
+  --cor-erro: #c62828;
+
+  /* Acentos por área do app do técnico */
+  --cor-suporte: #0f8a45;
+  --cor-cliente: #7a4bc4;
+  --cor-conexao: #0e7f8c;
+  --cor-onu: #a85a17;
+  --cor-endereco: #4a5c7a;
+  --cor-ferramentas: #5c6bc0;
+  --cor-financeiro: #b8860b;
+  --cor-offline: #d9463c;
+  /* Menu "OLTs" (Coletor de OLTs, opcional — ver hooks/useColetorOlt.ts). */
+  --cor-olts: #7b5ea7;
+
+  /* Sombra dos cards — token à parte porque no escuro uma sombra preta
+     não aparece contra um fundo já escuro (ver bloco dark abaixo). */
+  --sombra-card: 0 4px 16px rgba(0, 0, 0, 0.06);
+
+  /* Largura do conteúdo principal — um token só, em vez do mesmo
+     "max-width" repetido em cada página (100%, sem teto fixo). */
+  --largura-conteudo: 100%;
+
+  /* Altura da barra de navegação do rodapé somada à área da linha de
+     gestos do iPhone (viewport-fit=cover no index.html) — usada por tudo
+     que gruda no rodapé acima dela (barra fixa da OS). */
+  --altura-nav: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Tema escuro — dirigido só pelo atributo data-theme no <html>, nunca
+   direto por @media (prefers-color-scheme) — ver src/utils/tema.ts. */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --cor-fundo: #121316;
+  --cor-superficie: #1e2025;
+  --cor-borda: #34373e;
+  --cor-borda-suave: #2b2e34;
+  --cor-borda-clara: #292c32;
+
+  --cor-texto: #f0f0f0;
+  --cor-texto-secundario: #b8b8bc;
+  --cor-texto-terciario: #9a9aa0;
+  --cor-texto-fraco: #86868c;
+  --cor-texto-desabilitado: #6f6f75;
+
+  --sombra-card: 0 4px 16px rgba(0, 0, 0, 0.35);
+
+  --cor-sucesso: #4caf50;
+  --cor-erro: #f44336;
+
+  /* Acentos clareados só onde o tom original ficaria escuro demais como
+     TEXTO sobre um fundo já escuro (mesmo critério do app cliente). */
+  --cor-suporte: #3ecb74;
+  --cor-endereco: #8fa4c9;
+  --cor-conexao: #4fd2e3;
+  --cor-onu: #e6a35c;
+  --cor-ferramentas: #8890e0;
+  --cor-financeiro: #dba93f;
+  --cor-offline: #ef6a5f;
+  --cor-olts: #a88bd6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Campos e botões não herdam a fonte do app por padrão (caíam em Arial/
+   Roboto): herdam aqui, de uma vez para o app todo. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* 16px é o mínimo para o iPhone não ampliar a tela ao tocar no campo
+   (com 13–15px a tela ficava ampliada depois de digitar). Não usar
+   maximum-scale no viewport: o técnico precisa da pinça para ler MAC/serial. */
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+/* Sensação de app: sem mancha azul ao tocar, sem a página esticar no
+   topo/fim (o "puxar para atualizar" é do próprio app, PullToRefresh). */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+body {
+  margin: 0;
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+  /* Texto do app não seleciona ao segurar (como num app nativo); campos
+     e os dados que o técnico copia (classe .copiavel) continuam. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Dados que o técnico copia ou dita (PPPoE, IP, MAC, serial, protocolo,
+   CPF, telefone, endereço, texto do chamado): liberados por tela. */
+input,
+textarea,
+[contenteditable],
+.copiavel,
+.conexao-campo,
+.onu-campo,
+.detalhe-ordem-linha-campo strong,
+.detalhe-ordem-linha,
+.detalhe-ordem-descricao,
+.detalhe-ordem-meta,
+.detalhe-cliente-card,
+.detalhe-cliente-item,
+.detalhe-chamado-chat,
+.detalhe-chamado-resumo,
+.home-rodape-ip-item,
+.ferramentas-ip-resultado {
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* Reserva espaço para o conteúdo não ficar escondido atrás da barra de
+   navegação fixa no rodapé, quando ela está presente na página. */
+body:has(.bottom-nav) {
+  padding-bottom: var(--altura-nav);
+}
+
+/* Transição leve de entrada nas telas. */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tela-entrada {
+  animation: fade-in 0.22s ease;
+}
+
+/* Feedback tátil: botão/link/item de lista "afunda" levemente ao toque. */
+button:not(:disabled),
+a,
+.ticket-card {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+button:not(:disabled):active,
+a:active,
+.ticket-card:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Sistema de botão único — substitui as classes .xxx-btn-secundario/perigo/
+   primario que cada tela vinha duplicando com o próprio CSS (mesma
+   intenção, altura/raio levemente diferentes de tela para tela). Mesma
+   altura (44px) e raio (12px) em qualquer lugar do app; a cor do módulo
+   atual entra só no variante primário, via --botao-cor (ver uso em cada
+   tela). */
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 1.5px solid transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  /* Cobre o caso de ".botao" num <Link> (vira <a>) — sem isso, o
+     sublinhado padrão do navegador aparece por baixo do texto do botão. */
+  text-decoration: none;
+}
+
+.botao:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.botao-pequeno {
+  height: 44px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+.botao-primario {
+  border-color: transparent;
+  color: var(--cor-branco-fixo);
+  background: linear-gradient(135deg, var(--botao-cor, var(--cor-primaria)), var(--cor-primaria-escura));
+}
+
+/* Mesma variável --botao-cor do primário (ver acima) — quando a tela não
+   define nada, cai exatamente no cinza neutro de sempre (color-mix de uma
+   cor com ela mesma não muda nada); ações "construtivas" (Salvar,
+   Atualizar...) passam a cor da própria seção, ações de saída/cancelar
+   (Cancelar, Voltar) continuam sem setar a variável — de propósito, para
+   ficar neutro em qualquer tela. */
+.botao-secundario {
+  border-color: var(--botao-cor, var(--cor-borda));
+  background: color-mix(in srgb, var(--botao-cor, var(--cor-superficie)) 10%, var(--cor-superficie));
+  color: var(--botao-cor, var(--cor-texto-secundario));
+}
+
+/* Preenchimento leve (6%) além do contorno vermelho — ajuda a diferenciar
+   de ".botao-secundario" num relance, sem parecer agressivo. */
+.botao-perigo {
+  border-color: color-mix(in srgb, var(--cor-erro) 55%, transparent);
+  background: color-mix(in srgb, var(--cor-erro) 6%, var(--cor-superficie));
+  color: var(--cor-erro);
+}
+
+.botao-fantasma {
+  border-color: transparent;
+  background: transparent;
+  color: var(--cor-primaria);
+}
+
+/* Utilitário — botão ocupando a largura do container (ex.: "anexar
+   arquivo"), sem precisar de mais uma classe por tela para isso. */
+.botao-bloco {
+  width: 100%;
+}
+
+/* Variante quadrada, sem padding horizontal — ícone sozinho, sem texto
+   (ex.: leitor de QR/busca num campo). flex-shrink: 0 pra não encolher
+   ao lado de um input flexível. */
+.botao-quadrado {
+  flex-shrink: 0;
+  width: 44px;
+  padding: 0;
+}
+
+/* Transição entre telas — View Transitions API nativa (ver prop
+   "viewTransition" do react-router-dom nas páginas). */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) {
+    animation: tela-sai 0.22s ease both;
+  }
+
+  ::view-transition-new(root) {
+    animation: tela-entra 0.22s ease both;
+  }
+}
+
+/* Barra do rodapé e avisos do topo ficam parados durante a troca de tela
+   (antes deslizavam junto com a página). */
+.bottom-nav {
+  view-transition-name: barra-inferior;
+}
+
+.status-banner-offline {
+  view-transition-name: aviso-offline;
+}
+
+::view-transition-group(barra-inferior),
+::view-transition-group(aviso-offline) {
+  animation: none;
+}
+
+/* Voltar (botão do app ou do celular) entra pela esquerda — ver
+   utils/sentidoTransicao.ts, que marca data-sentido no <html>. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-sentido='voltar']::view-transition-old(root) {
+    animation-name: tela-sai-direita;
+  }
+
+  html[data-sentido='voltar']::view-transition-new(root) {
+    animation-name: tela-entra-esquerda;
+  }
+}
+
+@keyframes tela-sai-direita {
+  to {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+@keyframes tela-entra-esquerda {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+
+@keyframes tela-sai {
+  to {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+
+@keyframes tela-entra {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}

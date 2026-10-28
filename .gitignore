@@ -1,0 +1,24 @@
+# Backend (Python)
+backend/.venv/
+backend/**/__pycache__/
+backend/.env
+# $HOME do usuário de sistema do serviço (deploy/install.sh) aponta pra
+# backend/ — pip cria esse cache aí; sem isso, "git status --porcelain"
+# no install.sh acusaria "alteração local" a cada atualização.
+backend/.cache/
+# Log de auditoria local (app/audit.py) — dado real de produção, não vai pro repo.
+backend/logs/
+# Celulares inscritos nos avisos e OS já vistas (app/avisos.py) — dado de produção.
+backend/dados/
+
+# Frontend (Node/Vite)
+frontend/node_modules/
+frontend/dist/
+frontend/dev-dist/
+frontend/.vite/
+
+# Editor/OS
+.idea/
+.vscode/
+*.log
+Thumbs.db

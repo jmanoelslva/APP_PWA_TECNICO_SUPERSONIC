@@ -1,0 +1,348 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import {
+  MdBuild,
+  MdCable,
+  MdConstruction,
+  MdDarkMode,
+  MdGetApp,
+  MdLightMode,
+  MdLogout,
+  MdNotificationsActive,
+  MdNotificationsOff,
+  MdRouter,
+  MdSearch,
+  MdWifi,
+  MdWifiOff,
+} from 'react-icons/md'
+import { useSessao } from '../auth/useSessao'
+import { CORES, comAlpha } from '../utils/cores'
+import { usePwaInstall } from '../hooks/usePwaInstall'
+import { useTema } from '../hooks/useTema'
+import { useColetorOlt } from '../hooks/useColetorOlt'
+import { useAvisos } from '../hooks/useAvisos'
+import ModalInstalarIos from '../components/ModalInstalarIos'
+import ModalConfirmarLogout from '../components/ModalConfirmarLogout'
+import MinhasOsHoje, { type ResumoDoDia } from '../components/MinhasOsHoje'
+import { buscarClientes, resumoDoDia, type BuscaClienteResultado } from '../api/client'
+import { dataParaFormatoServidor, detectarTipoBusca, formatarDocumento } from '../utils/formatacao'
+import { buscarIpsPublicos } from '../utils/ipPublico'
+import './Home.css'
+
+function saudacaoPorHorario(nome: string): string {
+  const hora = new Date().getHours()
+  const periodo = hora >= 5 && hora < 12 ? 'Bom dia' : hora >= 12 && hora < 18 ? 'Boa tarde' : 'Boa noite'
+  return `${periodo}, ${nome}!`
+}
+
+// "Clientes" saiu daqui de propósito — virou o campo de busca direto no
+// topo da tela (ver <form> abaixo), como primeira opção, em vez de mais
+// um botão que só leva para outra tela para então buscar.
+const ITENS_MENU = [
+  { to: '/suporte', Icone: MdBuild, cor: CORES.suporte, label: 'OS / Suporte' },
+  { to: '/conexao', Icone: MdWifi, cor: CORES.conexao, label: 'Conexão' },
+  { to: '/onu', Icone: MdCable, cor: CORES.onu, label: 'ONU' },
+  { to: '/offline', Icone: MdWifiOff, cor: CORES.offline, label: 'Clientes Offline' },
+  { to: '/ferramentas', Icone: MdConstruction, cor: CORES.ferramentas, label: 'Ferramentas' },
+]
+
+/** "JM" de "jmanoelslva"; "MS" de "maria.silva" (partes separadas por . _ - ou espaço). */
+function iniciais(usuario: string | undefined): string {
+  const partes = (usuario ?? '').split(/[.\s_-]+/).filter(Boolean)
+  if (partes.length >= 2) return (partes[0][0] + partes[1][0]).toUpperCase()
+  return (partes[0] ?? '?').slice(0, 2).toUpperCase()
+}
+
+function textoResumo(resumo: ResumoDoDia | null): string {
+  const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })
+  if (!resumo) return hoje
+  if (resumo.total === 0) return `${hoje} · nenhuma OS para hoje`
+  const os = resumo.total === 1 ? '1 OS para hoje' : `${resumo.total} OS para hoje`
+  return resumo.atrasadas ? `${os} · ${resumo.atrasadas} atrasada${resumo.atrasadas > 1 ? 's' : ''}` : os
+}
+
+export default function Home() {
+  const { tecnico, sair } = useSessao()
+  const navigate = useNavigate()
+  const { podeInstalar, aoClicarInstalar, modalIosAberto, fecharModalIos } = usePwaInstall()
+  const { tema, alternarTema } = useTema()
+  const [menuAvatarAberto, setMenuAvatarAberto] = useState(false)
+  const [confirmarSairAberto, setConfirmarSairAberto] = useState(false)
+  const coletorOlt = useColetorOlt()
+  // Resumo do dia embaixo da saudação (vem de "Minhas OS de hoje").
+  const [resumoDia, setResumoDia] = useState<ResumoDoDia | null>(null)
+  // Barra "X de Y OS concluídas": vem de rota própria porque a lista de OS
+  // tira as finalizadas/fechadas (ver backend ordens_servico.py::resumo_do_dia).
+  const [progresso, setProgresso] = useState<{ total: number; concluidas: number } | null>(null)
+  const avisos = useAvisos()
+  const avisosLigados = avisos.estado === 'ligado'
+  // Por que o interruptor está travado, quando está.
+  const dicaAvisos =
+    avisos.estado === 'instalar'
+      ? 'Instale o app na tela inicial para receber'
+      : avisos.estado === 'sem-suporte'
+        ? 'Este navegador não recebe avisos'
+        : avisos.estado === 'bloqueado'
+          ? 'Notificações bloqueadas nas configurações do celular'
+          : null
+
+  // Mesmo combobox de busca ao vivo já usado em Conexão (usuário PPPoE) e
+  // ONU/CTO: digita um pedaço do nome/contrato/documento e a lista vai
+  // filtrando no backend com debounce, sem precisar apertar buscar nem
+  // sair da Home para ver o resultado — clicar num item já leva direto
+  // para o cliente. Sem botão de buscar (lupa): o combobox já cobre a busca
+  // sozinho; Enter no campo ainda leva para tela de busca completa, útil
+  // quando há muitos resultados para rolar.
+  const [busca, setBusca] = useState('')
+  const [resultadosBusca, setResultadosBusca] = useState<BuscaClienteResultado[]>([])
+  const [buscando, setBuscando] = useState(false)
+  const [listaAberta, setListaAberta] = useState(false)
+
+  // Rodapé com IPv4/IPv6 da rede atual — consulta automática ao entrar
+  // na Home, sem precisar de clique (ver Ferramentas.tsx para a versão
+  // com localização/provedor sob demanda).
+  const [ipv4, setIpv4] = useState<string | null>(null)
+  const [ipv6, setIpv6] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelado = false
+    resumoDoDia(dataParaFormatoServidor(new Date()).slice(0, 10))
+      .then((resposta) => {
+        if (!cancelado) setProgresso({ total: resposta.total, concluidas: resposta.concluidas })
+      })
+      .catch(() => {})
+    return () => {
+      cancelado = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelado = false
+    buscarIpsPublicos().then((resultado) => {
+      if (cancelado) return
+      setIpv4(resultado.ipv4)
+      setIpv6(resultado.ipv6)
+    })
+    return () => {
+      cancelado = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (busca.trim().length < 2) {
+      setResultadosBusca([])
+      return
+    }
+    let cancelado = false
+    setBuscando(true)
+    const temporizador = setTimeout(() => {
+      buscarClientes(detectarTipoBusca(busca))
+        .then((resposta) => {
+          if (!cancelado) setResultadosBusca(resposta.results)
+        })
+        .catch(() => {
+          if (!cancelado) setResultadosBusca([])
+        })
+        .finally(() => {
+          if (!cancelado) setBuscando(false)
+        })
+    }, 350)
+    return () => {
+      cancelado = true
+      clearTimeout(temporizador)
+    }
+  }, [busca])
+
+  async function aoClicarInstalarMenu() {
+    setMenuAvatarAberto(false)
+    await aoClicarInstalar()
+  }
+
+  function aoBuscar(evento: FormEvent) {
+    evento.preventDefault()
+    const termo = busca.trim()
+    // Mesmo parâmetro que BuscaCliente.tsx já lê sozinho ao montar
+    // (?busca=...) — chegar lá com o termo na URL já dispara a busca,
+    // sem precisar digitar de novo na outra tela.
+    navigate(termo ? `/clientes?busca=${encodeURIComponent(termo)}` : '/clientes', { viewTransition: true })
+  }
+
+  return (
+    <div className="home-tela tela-entrada">
+      <div className="home-conteudo">
+        <header
+          className="home-cabecalho"
+          style={{ background: comAlpha(CORES.primaria, 8), borderColor: comAlpha(CORES.primaria, 20) }}
+        >
+          <div className="home-header-saudacao">
+            <span className="home-saudacao">{saudacaoPorHorario(tecnico?.username ?? 'Técnico')}</span>
+            <span className="home-resumo">{textoResumo(resumoDia)}</span>
+            {progresso && progresso.total > 0 && (
+              <div className="home-progresso">
+                <div
+                  className="home-progresso-trilho"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={progresso.total}
+                  aria-valuenow={progresso.concluidas}
+                  aria-label="OS concluídas hoje"
+                >
+                  <span style={{ width: `${(progresso.concluidas / progresso.total) * 100}%` }} />
+                </div>
+                <span className="home-progresso-texto">
+                  {progresso.concluidas} de {progresso.total} OS concluída{progresso.total > 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="home-avatar-wrapper">
+            <button className="home-avatar" onClick={() => setMenuAvatarAberto((v) => !v)} aria-label="Menu do usuário">
+              {iniciais(tecnico?.username)}
+            </button>
+            {menuAvatarAberto && (
+              <>
+                <div className="home-avatar-menu-fundo" onClick={() => setMenuAvatarAberto(false)} />
+                <div className="home-avatar-menu">
+                  {podeInstalar && (
+                    <button onClick={aoClicarInstalarMenu}>
+                      <MdGetApp size={18} /> Instalar app
+                    </button>
+                  )}
+                  {avisos.estado !== 'indisponivel' && avisos.estado !== 'carregando' && (
+                    <button
+                      role="switch"
+                      aria-checked={avisosLigados}
+                      className="home-avatar-menu-avisos"
+                      disabled={avisos.ocupado || avisos.estado === 'instalar' || avisos.estado === 'sem-suporte'}
+                      onClick={() => {
+                        if (avisos.estado === 'bloqueado') return
+                        void (avisosLigados ? avisos.desligar() : avisos.ligar())
+                      }}
+                    >
+                      {avisosLigados ? <MdNotificationsActive size={18} /> : <MdNotificationsOff size={18} />}
+                      <span className="home-avatar-menu-avisos-texto">
+                        Avisos de OS
+                        {dicaAvisos && <small>{dicaAvisos}</small>}
+                      </span>
+                      <span className="home-interruptor" data-ligado={avisosLigados} aria-hidden="true" />
+                    </button>
+                  )}
+                  <button onClick={alternarTema}>
+                    {tema === 'dark' ? <MdLightMode size={18} /> : <MdDarkMode size={18} />}
+                    {tema === 'dark' ? 'Tema claro' : 'Tema escuro'}
+                  </button>
+                  <button
+                    className="home-avatar-menu-sair"
+                    onClick={() => {
+                      setMenuAvatarAberto(false)
+                      setConfirmarSairAberto(true)
+                    }}
+                  >
+                    <MdLogout size={18} /> Sair
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </header>
+
+        <form className="home-busca home-combobox" onSubmit={aoBuscar}>
+          <div className="home-busca-campo">
+            <MdSearch size={20} className="home-busca-icone" aria-hidden="true" />
+            <input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              onFocus={() => setListaAberta(true)}
+              onBlur={() => setTimeout(() => setListaAberta(false), 150)}
+              placeholder="Cliente: nome, contrato ou CPF/CNPJ"
+            />
+          </div>
+          {listaAberta && busca.trim().length >= 2 && (
+            <ul className="home-combobox-lista">
+              {buscando && <li className="home-combobox-vazio">Buscando…</li>}
+              {!buscando && resultadosBusca.length === 0 && (
+                <li className="home-combobox-vazio">Nenhum cliente encontrado.</li>
+              )}
+              {!buscando &&
+                resultadosBusca.map((resultado) => (
+                  <li key={resultado.client_pk}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setListaAberta(false)
+                        navigate(`/clientes/${resultado.client_pk}`, { viewTransition: true })
+                      }}
+                    >
+                      <strong>
+                        {resultado.cliente.client_complete_name ?? resultado.cliente.client_name ?? `Cliente #${resultado.client_pk}`}
+                      </strong>
+                      {resultado.cliente.client_doc1 && ` — ${formatarDocumento(resultado.cliente.client_doc1)}`}
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </form>
+
+        <MinhasOsHoje onResumo={setResumoDia} />
+
+        <div className="home-menu">
+          {ITENS_MENU.map((item) => (
+            <Link key={item.to} to={item.to} className="home-menu-item" viewTransition>
+              {/* Fundo em tom claro da cor da área e ícone na cor cheia: a
+                  grade fica mais calma que 6 blocos sólidos e o ícone passa
+                  no contraste nos dois temas. */}
+              <span className="home-menu-icone" style={{ background: comAlpha(item.cor, 14), color: item.cor }}>
+                <item.Icone size={24} />
+              </span>
+              <span className="home-menu-label">{item.label}</span>
+            </Link>
+          ))}
+          {/* Coletor de OLTs: outro app no mesmo domínio (/olt/), opcional —
+              só aparece se estiver instalado. Link normal (não do router):
+              sai do PWA do técnico e abre o coletor, que usa a mesma sessão. */}
+          {coletorOlt && (
+            <a href="/olt/" className="home-menu-item">
+              <span className="home-menu-icone" style={{ background: comAlpha(CORES.olts, 14), color: CORES.olts }}>
+                <MdRouter size={24} />
+              </span>
+              <span className="home-menu-label">OLTs</span>
+            </a>
+          )}
+        </div>
+
+        {(ipv4 || ipv6) && (
+          <footer className="home-rodape-ip">
+            {ipv4 && (
+              <span className="home-rodape-ip-item">
+                <strong>IPv4</strong> {ipv4}
+              </span>
+            )}
+            {ipv6 && (
+              <span className="home-rodape-ip-item">
+                <strong>IPv6</strong> {ipv6}
+              </span>
+            )}
+          </footer>
+        )}
+      </div>
+
+      <ModalInstalarIos aberto={modalIosAberto} onFechar={fecharModalIos} />
+      <ModalConfirmarLogout
+        aberto={confirmarSairAberto}
+        onCancelar={() => setConfirmarSairAberto(false)}
+        onConfirmar={() => {
+          setConfirmarSairAberto(false)
+          // RotaProtegida já redireciona pro /login sozinho assim que
+          // "logado" vira false (ver RotaProtegida.tsx) — navegar aqui
+          // manualmente, sem esperar sair() terminar, desmontaria a tela
+          // antes do POST /auth/logout ser disparado. Os avisos de OS
+          // continuam ligados (só o interruptor do avatar desliga).
+          sair()
+        }}
+      />
+    </div>
+  )
+}

@@ -1,0 +1,234 @@
+# Deploy em produção — tecnico.provedorsupersonic.com.br
+
+Pensado para rodar **em paralelo** com o portal do cliente
+(`cliente.provedorsupersonic.com.br`), no mesmo servidor ou em
+outro — nenhum dos dois instaladores mexe no site/vhost/serviço do outro.
+
+Diferença de fundo em relação ao app cliente: lá é só um site estático
+fazendo reverse proxy **direto** para o Controllr (nenhum processo próprio
+rodando em produção). Aqui tem duas partes:
+
+1. O build estático do frontend (Vite) — igual ao app cliente.
+2. Um **backend próprio** (FastAPI/uvicorn) que fica rodando o tempo todo
+   como serviço systemd, na porta 8000 (só em `127.0.0.1`, nunca exposto
+   direto) — é ele quem fala com o Controllr (cookie de sessão do técnico
+   logado), não o navegador. O servidor web faz proxy de `/api/*` para
+   esse processo LOCAL.
+
+## Instalação automatizada (servidor Debian novo ou já em uso)
+
+```bash
+git clone https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC.git
+sudo bash APP_PWA_TECNICO_SUPERSONIC/deploy/install.sh
+```
+
+[`deploy/install.sh`](install.sh) pergunta o domínio (Enter aceita o
+padrão `tecnico.provedorsupersonic.com.br`) e a porta local do backend (Enter aceita
+`8000`), **detecta sozinho** se Apache ou Nginx já está rodando no
+servidor (ex: por causa do app cliente já instalado) e usa o mesmo — só
+pergunta qual usar se nenhum dos dois estiver ativo ainda. Não mexe em
+nenhum vhost/serviço já existente, só adiciona os deste app.
+
+Rodar de novo (mesmo servidor) **atualiza** tudo: `git pull`, reinstala
+dependências Python (`pip install -r requirements.txt`) e Node (`npm
+ci`), reconstrói o frontend, reinicia o serviço do backend e republica o
+`dist/` — sem reemitir certificado nem reconfigurar o que já está pronto.
+Domínio e porta escolhidos na primeira instalação ficam salvos em
+`/etc/supersonic-tecnico/install.conf` e voltam como sugestão (Enter aceita)
+— se você definiu uma porta diferente da 8000 (ex: 8517), não precisa
+redigitar; o script já para o serviço antigo sozinho antes de checar se
+a porta está livre, senão a checagem sempre acusaria "em uso" contra o
+próprio serviço da instalação anterior.
+
+Vindo da versão 1.6.0 ou anterior, atualize o repositório **antes** de rodar
+o instalador, para já executar a versão nova dele (até a 1.6.0 o script
+fazia `git pull` de si mesmo no meio da execução e podia rodar a versão
+nova pela metade):
+
+```bash
+sudo git -C /opt/supersonic-tecnico pull --ff-only
+sudo bash /opt/supersonic-tecnico/deploy/install.sh
+```
+
+O passo a passo manual abaixo continua válido para quem preferir controle
+fino, outro sistema operacional, ou não usar Debian.
+
+## 1. Backend — venv, dependências e serviço
+
+```bash
+cd backend
+python3 -m venv .venv
+./.venv/bin/pip install -r requirements.txt
+```
+
+Crie `/etc/supersonic-tecnico/backend.env` (fora do diretório de deploy, para
+sobreviver a um `git pull`):
+
+```env
+CONTROLLR_URL=https://controllr.provedorsupersonic.com.br:8443
+SESSION_COOKIE_MAX_AGE_SECONDS=86400
+CONTROLLR_LIVENESS_CHECK_SECONDS=60
+CORS_ALLOW_ORIGINS=https://tecnico.provedorsupersonic.com.br
+IPIFY_API_KEY=
+```
+
+`IPIFY_API_KEY` é a chave da Geolocation API do ipify (geo.ipify.org),
+usada pela ferramenta "Meu IP". Sem essa chave, a ferramenta fica
+indisponível (a rota responde 503) — o resto do app funciona normal.
+
+A sessão do técnico não tem TTL próprio — ela vive enquanto o cookie de
+sessão criado no login do Controllr continuar sendo aceito por ele, o que
+este backend confirma a cada `CONTROLLR_LIVENESS_CHECK_SECONDS` (ver
+`backend/app/deps.py::get_current_session`); quem decide quando expirar
+por inatividade é o próprio Controllr. `SESSION_COOKIE_MAX_AGE_SECONDS`
+só limita até quando o **navegador** guarda o cookie `TECSESSION` — por
+isso pode ficar bem alto (24h por padrão).
+
+`CONTROLLR_URL` aponta para o **painel administrativo** do Controllr (porta
+`8443`), não para o endpoint público em 443 que o app cliente usa — acesso
+de staff/ACL (usuário do técnico) só existe ali. O servidor onde este
+backend roda precisa ter saída liberada (firewall) para
+`controllr.provedorsupersonic.com.br:8443`.
+
+Rode como serviço persistente (systemd, dedicado a um usuário sem login
+— **nunca como root**), reiniciando sozinho em caso de queda. O
+`install.sh` gera esse unit sozinho; para fazer à mão, veja o bloco
+`[Service]` que ele escreve em `/etc/systemd/system/supersonic-tecnico-api.service`
+(comando `ExecStart`: `.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000`).
+
+O backend nunca deve ficar acessível direto da internet — só em
+`127.0.0.1`, alcançado exclusivamente através do reverse proxy do
+servidor web (ver seção 3).
+
+## 2. Frontend — gerar o build
+
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+Isso gera `frontend/dist/` — só o conteúdo dela precisa ir para o diretório
+que o servidor web serve (ex: `/var/www/supersonic-tecnico/dist`). Nada de
+Node roda em produção (só o Python do backend).
+
+## 3. Configurar o servidor web
+
+Dois exemplos prontos nesta pasta:
+
+- `nginx.conf.example`
+- `apache-vhost.conf.example`
+
+Ambos fazem as mesmas duas coisas obrigatórias:
+
+1. Servem o conteúdo estático de `dist/`, com fallback para o `index.html`
+   em qualquer rota que não seja um arquivo real (necessário para o
+   react-router-dom — sem isso, recarregar a página numa rota interna
+   como `/suporte/123` dá 404).
+2. Fazem reverse proxy de `/api/*` para o **backend local**
+   (`127.0.0.1:8000`) — **não** para o Controllr direto, diferente do app
+   cliente. Não precisa reescrever domínio de cookie: o cookie de sessão
+   (`TECSESSION`) é emitido pelo nosso próprio backend, sem domínio
+   fixo, então já nasce certo para `tecnico.provedorsupersonic.com.br`.
+
+Ajuste nos dois exemplos: os caminhos do certificado TLS, o `root`/
+`DocumentRoot` para o local real onde `dist/` for publicado, e a porta do
+backend se não for a 8000.
+
+Os dois exemplos também têm uma linha de include **opcional** para o
+Coletor de OLTs (projeto COLETA-OLT): `include /etc/coletor-olt/web/nginx-*.conf;`
+no Nginx e `IncludeOptional /etc/coletor-olt/web/apache-*.conf` no Apache.
+Sem o coletor instalado ela não inclui nada e o app funciona igual. Com o
+coletor instalado no modo "dentro do app técnico", ele fica em
+`https://tecnico.provedorsupersonic.com.br/olt/`, usa o login do técnico e aparece o
+menu **OLTs** no painel. Não remova a linha.
+
+## 4. Certificado TLS
+
+`tecnico.provedorsupersonic.com.br` precisa de um certificado válido (ex: via
+Certbot/Let's Encrypt) — os exemplos assumem esse caminho padrão. Sem
+HTTPS, cookies com `Secure` (se o backend um dia passar a marcar assim)
+não seriam nem enviados pelo navegador.
+
+## 5. Checklist para validar depois de publicar
+
+- [ ] `systemctl status supersonic-tecnico-api` — serviço ativo, sem
+      reiniciar em loop (`journalctl -u supersonic-tecnico-api -n 50` se não
+      estiver).
+- [ ] `curl -s http://127.0.0.1:8000/health` no próprio servidor —
+      `{"ok":true}` (confirma o backend de pé antes de testar via HTTPS).
+- [ ] `curl -skI https://controllr.provedorsupersonic.com.br:8443/` no próprio
+      servidor — confirma que o firewall deixa este servidor alcançar o
+      painel administrativo na porta 8443 antes mesmo de tentar logar
+      pelo app (se travar/der timeout aqui, o login vai falhar por
+      timeout, não por credencial errada — sintomas bem diferentes).
+- [ ] Abrir `https://tecnico.provedorsupersonic.com.br/suporte` diretamente (sem
+      passar pela home antes) — deve cair na tela de login (fallback de
+      SPA funcionando) e, depois de logado, recarregar a página em
+      `/suporte` não deve dar 404.
+- [ ] Fazer login com um usuário técnico (ACL) real e confirmar que a
+      sessão se mantém ao navegar entre Clientes/Suporte/Conexão (prova
+      que o cookie `TECSESSION` está sendo aceito).
+- [ ] DevTools → Application → Cookies e confirmar que `TECSESSION`
+      aparece com o domínio `tecnico.provedorsupersonic.com.br`.
+- [ ] Abrir uma OS, mandar uma mensagem, anexar uma foto e **fechar a
+      OS** — cobre o fluxo mais crítico deste app.
+- [ ] Testar "Instalar app" (Android/Chrome) e o passo a passo do iOS
+      (Safari → compartilhar → Adicionar à Tela de Início).
+- [ ] DevTools → Network → recarregar `/` → conferir `Cache-Control:
+      no-cache` na resposta do `index.html`/`sw.js`, e `Cache-Control:
+      public, max-age=31536000, immutable` numa requisição de
+      `/assets/*.js` — sem isso, atualizações do app podem ficar
+      escondidas no navegador do técnico por dias (ver "Aviso de nova
+      versão" no README do frontend).
+- [ ] Confirmar que o site do app **cliente** (`cliente.provedorsupersonic.com.br`,
+      se estiver no mesmo servidor) continua funcionando normalmente —
+      prova de que a instalação deste app não interferiu em nada.
+- [ ] Avisos de OS: `journalctl -u supersonic-tecnico-api | grep -i vigia`
+      deve mostrar "Vigia de OS ligado" (ou "Avisos de OS desligados" se
+      não houver usuário de consulta). No celular, menu do avatar →
+      **Avisos de OS** → permitir; chega na hora o aviso "Avisos de OS
+      ativados".
+
+## 6. Avisos de OS nova no celular
+
+O Controllr não avisa quando chega OS nova (sem webhook), então o backend
+(`app/vigia_os.py`) pergunta de tempos em tempos quais OS estão em aberto
+e manda um aviso (Web Push) ao técnico responsável (`staff_username`) de
+cada OS nova. Precisa, no `/etc/supersonic-tecnico/backend.env`:
+
+- `CONTROLLR_CONSULTA_USUARIO` / `CONTROLLR_CONSULTA_SENHA` — usuário do
+  Controllr que **veja as OS de todos os técnicos**. O `install.sh`
+  pergunta uma vez (a senha não aparece ao digitar).
+- `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — geradas pelo `install.sh` uma
+  vez só. Trocar desliga os avisos em todos os celulares (cada técnico
+  liga de novo).
+- `AVISOS_INTERVALO_SEGUNDOS` — de quanto em quanto tempo procurar OS nova
+  (padrão 60, mínimo 30). Mudou? `systemctl restart supersonic-tecnico-api`.
+
+Celulares inscritos e OS já vistas ficam em `backend/dados/` (fora do git).
+Os avisos continuam chegando mesmo depois do **Sair** e com o app fechado;
+só o interruptor **Avisos de OS** (menu do avatar) desliga. Se outro
+técnico entrar no mesmo celular, os avisos passam a ser dele. No iPhone, só com o app instalado na tela
+inicial (iOS 16.4 ou mais novo).
+
+## 7. Projeto da rede (KMZ) no mapa do bloco CTO
+
+O bloco CTO (tela Conexão) mostra um mapa com as CTOs do Controllr, a CTO
+escolhida, o técnico e o endereço do cliente. Para desenhar também os
+cabos e caixas do projeto, coloque o KMZ (ou KML) exportado do Google
+Earth no servidor:
+
+```bash
+sudo cp projeto.kmz /etc/supersonic-tecnico/projeto.kmz
+sudo chown supersonic-tecnico:supersonic-tecnico /etc/supersonic-tecnico/projeto.kmz
+```
+
+Outro caminho? `MAPA_PROJETO_PATH=/caminho/projeto.kmz` no `backend.env` e
+`systemctl restart supersonic-tecnico-api`. Para atualizar o projeto, basta
+sobrescrever o arquivo: o backend relê sozinho quando a data muda. Sem o
+arquivo, o mapa aparece só com as CTOs.
+
+O mapa usa as mesmas imagens de satélite do mapa do Controllr
+(`mt0`–`mt3.google.com`), liberadas no `img-src` do CSP dos vhosts de
+exemplo — rode o `install.sh` de novo para o vhost pegar essa mudança.

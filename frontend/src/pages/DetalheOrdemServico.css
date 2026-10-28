@@ -1,0 +1,485 @@
+.detalhe-ordem-tela {
+  max-width: var(--largura-conteudo);
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.detalhe-ordem-status {
+  color: var(--cor-texto-secundario);
+  font-size: 14px;
+  text-align: center;
+  padding: 32px 0;
+}
+
+.detalhe-ordem-status .botao {
+  margin-top: 12px;
+}
+
+.detalhe-ordem-vazio {
+  font-size: 13px;
+  color: var(--cor-texto-terciario);
+  margin: 0 0 12px;
+}
+
+.detalhe-ordem-card {
+  background: var(--cor-superficie);
+  border-radius: 16px;
+  border-left: 4px solid var(--cor-suporte);
+  padding: 18px;
+  box-shadow: var(--sombra-card);
+  margin-bottom: 16px;
+}
+
+.detalhe-ordem-card h2 {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cor-texto-secundario);
+  margin: 0 0 12px;
+}
+
+.detalhe-ordem-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.detalhe-ordem-topo strong {
+  font-size: 15px;
+  color: var(--cor-texto);
+}
+
+.detalhe-ordem-btn-icone {
+  border: none;
+  background: transparent;
+  color: var(--cor-texto-terciario);
+  cursor: pointer;
+  /* 44px de área de toque sem crescer o visual (margem negativa). */
+  width: 44px;
+  height: 44px;
+  margin: -12px -12px -12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.detalhe-ordem-etapa-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--cor-branco-fixo);
+  background: var(--cor-suporte);
+  border-radius: 12px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.detalhe-ordem-etapa-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--cor-borda-suave);
+}
+
+.detalhe-ordem-etapa-item:last-child {
+  border-bottom: none;
+}
+
+.detalhe-ordem-etapa-item-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.detalhe-ordem-etapa-item-texto strong {
+  font-size: 13px;
+  color: var(--cor-texto);
+}
+
+.detalhe-ordem-etapa-item-texto span {
+  font-size: 12px;
+  color: var(--cor-texto-terciario);
+}
+
+.detalhe-ordem-etapa-feito {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cor-sucesso);
+}
+
+.detalhe-ordem-etapa-btn-desfazer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 16px;
+  border: 1.5px solid var(--cor-sucesso);
+  background: transparent;
+  color: var(--cor-sucesso);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.detalhe-ordem-etapa-btn-desfazer {
+  border-color: var(--cor-erro);
+  color: var(--cor-erro);
+}
+
+.detalhe-ordem-etapa-btn-desfazer:disabled {
+  opacity: 0.4;
+  cursor: default;
+  border-color: var(--cor-borda);
+  color: var(--cor-texto-terciario);
+}
+
+.detalhe-ordem-linha {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--cor-texto-secundario);
+}
+
+.detalhe-ordem-descricao {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--cor-texto);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.detalhe-ordem-descricao:last-child {
+  margin-bottom: 0;
+}
+
+.detalhe-ordem-linha-campo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--cor-borda-suave);
+  font-size: 13px;
+}
+
+.detalhe-ordem-linha-campo:last-child {
+  border-bottom: none;
+}
+
+.detalhe-ordem-linha-campo > span {
+  color: var(--cor-texto-terciario);
+  flex-shrink: 0;
+}
+
+.detalhe-ordem-linha-campo strong {
+  color: var(--cor-texto);
+  font-weight: 700;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detalhe-ordem-campo-valor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.detalhe-ordem-campo-valor strong {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+}
+
+.detalhe-ordem-campo-valor button {
+  border: none;
+  background: var(--cor-fundo);
+  color: var(--cor-texto-secundario);
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.detalhe-ordem-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--cor-suporte);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.detalhe-ordem-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid var(--cor-suporte);
+  color: var(--cor-suporte);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.detalhe-ordem-modal-fundo {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+
+.detalhe-ordem-modal {
+  background: var(--cor-superficie);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 380px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detalhe-ordem-modal h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  color: var(--cor-texto);
+}
+
+.detalhe-ordem-modal-texto {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--cor-texto-secundario);
+}
+
+.detalhe-ordem-modal textarea {
+  border: 1px solid var(--cor-borda);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--cor-texto);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.detalhe-ordem-modal-acoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.detalhe-ordem-modal-acoes .botao {
+  flex: 1;
+}
+
+/* Anexos enviados nesta tela, com a prévia da imagem. */
+.detalhe-ordem-anexos {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+
+.detalhe-ordem-anexo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.detalhe-ordem-anexo-previa,
+.detalhe-ordem-anexo-icone {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 1px solid var(--cor-borda);
+  object-fit: cover;
+  background: var(--cor-fundo);
+}
+
+.detalhe-ordem-anexo-icone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cor-texto-secundario);
+}
+
+.detalhe-ordem-anexo-enviando .detalhe-ordem-anexo-previa {
+  opacity: 0.6;
+}
+
+.detalhe-ordem-anexo-nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cor-texto-secundario);
+}
+
+.detalhe-ordem-anexo-situacao {
+  font-weight: 700;
+  color: var(--cor-texto-secundario);
+}
+
+.detalhe-ordem-anexo-enviado .detalhe-ordem-anexo-situacao {
+  color: var(--cor-sucesso-vivo);
+}
+
+.detalhe-ordem-anexo-erro .detalhe-ordem-anexo-situacao {
+  color: var(--cor-erro);
+}
+
+/* Cabeçalho da OS: título, cliente, chips (quando/atraso/tarefa/números),
+   linha de etapas e contato — tudo o que o técnico precisa sem rolar. */
+.detalhe-ordem-cabecalho {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detalhe-ordem-cabecalho .detalhe-ordem-chip {
+  align-self: flex-start;
+  margin-top: 0;
+}
+
+.detalhe-ordem-topo .detalhe-ordem-titulo {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.detalhe-ordem-subtitulo {
+  margin-top: -6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cor-texto-secundario);
+}
+
+.detalhe-ordem-metas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.detalhe-ordem-meta {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: var(--cor-fundo);
+  color: var(--cor-texto-secundario);
+  font-variant-numeric: tabular-nums;
+}
+
+.detalhe-ordem-meta-atraso {
+  background: color-mix(in srgb, var(--cor-erro) 14%, transparent);
+  color: var(--cor-erro);
+}
+
+/* Linha de etapas: Agendada → Respondida → Iniciada → Finalizada. */
+.detalhe-ordem-passos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.detalhe-ordem-passos li {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cor-texto-terciario);
+}
+
+.detalhe-ordem-passos li::before {
+  content: '';
+  height: 5px;
+  border-radius: 3px;
+  background: var(--cor-borda);
+}
+
+.detalhe-ordem-passos .detalhe-ordem-passo-feito {
+  color: var(--cor-suporte);
+}
+
+.detalhe-ordem-passos .detalhe-ordem-passo-feito::before {
+  background: var(--cor-suporte);
+}
+
+.detalhe-ordem-passos .detalhe-ordem-passo-atual {
+  color: var(--cor-texto);
+}
+
+.detalhe-ordem-passos .detalhe-ordem-passo-atual::before {
+  background: repeating-linear-gradient(90deg, var(--cor-suporte) 0 6px, transparent 6px 9px);
+}
+
+.detalhe-ordem-contato {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.detalhe-ordem-contato .acoes-contato {
+  margin-top: 0;
+}
+
+.detalhe-ordem-rota {
+  --cor-suporte: var(--cor-primaria);
+}
+
+/* Próxima etapa fixa no rodapé, logo acima da barra de navegação. */
+.detalhe-ordem-tela:has(.detalhe-ordem-barra-acao) {
+  padding-bottom: 104px;
+}
+
+.detalhe-ordem-barra-acao {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--altura-nav);
+  z-index: 40;
+  max-width: var(--largura-conteudo);
+  margin: 0 auto;
+  padding: 10px 16px;
+  background: var(--cor-superficie);
+  border-top: 1px solid var(--cor-borda-suave);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.detalhe-ordem-barra-botao {
+  height: 52px;
+  font-size: 15px;
+}

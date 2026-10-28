@@ -1,0 +1,103 @@
+import random
+from typing import Any
+from urllib.parse import urlencode
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+
+from .. import contexto_auditoria as contexto
+from ..audit import registrar_auditoria
+from ..deps import AuthContext, get_auth_context
+from ..http_errors import detalhe_erro
+
+router = APIRouter(tags=["telefones"])
+
+
+class NovoTelefonePayload(BaseModel):
+    client_pk: int
+    phone_identification: str
+    phone_number: str
+    phone_operator: str | None = None
+    phone_type: int | None = None
+    phone_sva: int | None = None
+    phone_status: int | None = None
+    phone_valid: int | None = None
+    phone_code: str | None = None
+
+
+@router.post("/telefones")
+async def criar_telefone(
+    payload: NovoTelefonePayload, request: Request, ctx: AuthContext = Depends(get_auth_context)
+) -> dict[str, Any]:
+    # Defaults do formulário "Nova Entrada" do painel: SVA habilitado,
+    # status habilitado, válido, e os 4 tipos de contato marcados
+    # (bitmask 15). O técnico só informa identificação e número; o resto
+    # seria ruído numa tela de campo.
+    campos = {
+        "client_pk": payload.client_pk,
+        "phone_identification": payload.phone_identification,
+        "phone_number": payload.phone_number,
+        "phone_operator": payload.phone_operator or "-",
+        "phone_type": payload.phone_type if payload.phone_type is not None else 15,
+        "phone_sva": payload.phone_sva if payload.phone_sva is not None else 1,
+        "phone_status": payload.phone_status if payload.phone_status is not None else 1,
+        "phone_valid": payload.phone_valid if payload.phone_valid is not None else 1,
+        "phone_code": payload.phone_code or str(random.randint(100000, 999999)),
+    }
+    resposta = await ctx.controllr.phone_create(urlencode(campos))
+    if not resposta.success:
+        raise HTTPException(status_code=400, detail=detalhe_erro("Não foi possível adicionar o telefone.", resposta))
+    registrar_auditoria(request, ctx.session, "telefone.criar", {
+        k: v for k, v in {
+            "client_pk": payload.client_pk,
+            "cliente": await contexto.nome_cliente(ctx, payload.client_pk),
+            "telefone": contexto.texto_telefone(payload.model_dump()),
+        }.items() if v not in (None, "")
+    })
+    return {"success": True, "results": resposta.results}
+
+
+class TelefonePayload(BaseModel):
+    # Telefone é recurso próprio do Controllr (/controllrctl/phone/*), não
+    # um campo solto do cliente — client_phones (client/list) é só um
+    # resumo "Rótulo#-#número" montado a partir desses registros. O
+    # update exige o registro completo mesmo quando só o número muda; o
+    # técnico edita apenas o número na tela, os demais valores já
+    # carregados são reenviados como estavam.
+    client_pk: int | None = None
+    phone_identification: str | None = None
+    phone_number: str | None = None
+    phone_operator: str | None = None
+    phone_type: int | None = None
+    phone_sva: int | None = None
+    phone_status: int | None = None
+    phone_valid: int | None = None
+    phone_code: str | None = None
+
+
+def _corpo(payload: TelefonePayload, extras: dict[str, Any] | None = None) -> str:
+    campos = {k: v for k, v in payload.model_dump().items() if v is not None}
+    if extras:
+        campos.update(extras)
+    return urlencode(campos)
+
+
+@router.put("/telefones/{phone_pk}")
+async def atualizar_telefone(
+    phone_pk: int, payload: TelefonePayload, request: Request, ctx: AuthContext = Depends(get_auth_context)
+) -> dict[str, Any]:
+    antes = await contexto.telefone(ctx, phone_pk)
+    resposta = await ctx.controllr.phone_update(_corpo(payload, {"phone_pk": phone_pk}))
+    if not resposta.success:
+        raise HTTPException(status_code=400, detail=detalhe_erro("Não foi possível atualizar o telefone.", resposta))
+    client_pk = payload.client_pk or (antes or {}).get("client_pk")
+    registrar_auditoria(request, ctx.session, "telefone.editar", {
+        k: v for k, v in {
+            "client_pk": client_pk,
+            "cliente": await contexto.nome_cliente(ctx, client_pk),
+            "phone_pk": phone_pk,
+            "alteracoes": contexto.alteracoes(antes, payload.model_dump(),
+                                              {"phone_identification": "Identificação", "phone_number": "Número"}),
+        }.items() if v not in (None, "", [])
+    })
+    return {"success": True, "results": resposta.results}
