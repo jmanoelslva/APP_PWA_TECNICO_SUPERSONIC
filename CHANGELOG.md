@@ -7,6 +7,11 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não lançado]
 
+### Alterado
+
+- **Login:** o nome embaixo do logotipo passa a ser "SUPERSONIC Técnico" (antes
+  "App Técnico").
+
 ## [1.22.0] - 2026-11-04
 
 ### Adicionado

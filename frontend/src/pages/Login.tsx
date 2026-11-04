@@ -163,7 +163,7 @@ export default function Login() {
 
       <div className="login-marca">
         <img className="login-marca-logo" src="/logo.png" alt="SUPERSONIC" />
-        <strong>App Técnico</strong>
+        <strong>SUPERSONIC Técnico</strong>
       </div>
 
       <div className="login-card">
