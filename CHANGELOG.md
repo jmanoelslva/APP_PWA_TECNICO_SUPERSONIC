@@ -7,6 +7,65 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não lançado]
 
+## [1.20.0] - 2026-11-04
+
+### Adicionado
+
+- **Busca geral na tela inicial:** o campo do topo busca enquanto se
+  digita o cliente (nome, contrato ou CPF/CNPJ), a ONU pelo serial (bastam
+  os primeiros caracteres) e a conexão pelo usuário PPPoE. Enter abre a
+  lista completa, agrupada, com os clientes abertos por último neste
+  celular.
+- **Selo de status do cliente:** online, offline, bloqueado ou sem
+  conexão, no topo do detalhe do cliente e no card do cliente em Conexão.
+- **Atalhos do cliente:** OS e Financeiro fixos no topo do detalhe do
+  cliente. O atalho OS abre a lista já filtrada pelo cliente. Conexão e
+  ONU ficam nos botões de cada conexão.
+- **Hora da última leitura:** "Lido há X min" na sessão online, no resumo
+  de cada conexão do cliente e no sinal da ONU na OS.
+- **Modo sol:** alto contraste para tela no sol (fundo branco, texto preto
+  e mais pesado, bordas visíveis), por cima do tema claro ou escuro.
+- **Configurações:** o avatar da tela inicial abre uma folha com tema
+  escuro, modo sol, avisos de OS, instalar app e sair, com a versão do app
+  no rodapé.
+
+### Alterado
+
+- **Barra de navegação:** Início, OS, Conexão e ONU. Sair fica em
+  Configurações.
+- **Tela inicial mais curta:** grade de atalhos compacta e sem o rodapé de
+  IPv4/IPv6, que continua em Ferramentas → Meu IP.
+- **Conexão em abas:** Resumo (acesso PPPoE primeiro, sessão online e
+  ONU), Wi-Fi, Roteador (acesso e observação) e Rede (CTO e rede). Wi-Fi e
+  Roteador já abrem com os blocos expandidos.
+- **Detalhe do cliente:** Conexões vem primeiro e aberta; Telefones,
+  Endereços e Contratos começam recolhidos, mostrando a quantidade.
+- **Detalhe da OS na ordem de campo:** endereço (com Rota) primeiro, depois
+  descrição, conexão (com o sinal da ONU) e anexo; Cliente, Contrato e
+  Histórico das etapas ficam recolhidos no fim.
+- **Toque de 48 px:** botões passam de 44 para 48 px; os ícones de copiar,
+  revelar, editar e localizar ganham área de toque de 48 px.
+- **Reiniciar e remover ONU:** confirmação por deslizar, em vez de um
+  segundo toque.
+- **Estados vazios com próximo passo:** "Ver todas as OS", "Atualizar
+  lista", "Limpar filtros" e "Limpar busca".
+- **Rolagem:** voltar de um detalhe devolve a lista na mesma altura; tela
+  nova abre do topo.
+
+### Corrigido
+
+- **Voltar do Android depois de sair:** na tela de login, o voltar fecha o
+  app em vez de passar pelas telas visitadas antes de sair. Depois de
+  entrar, voltar na tela inicial também fecha o app.
+- **Rolar a lista da busca da tela inicial para cima** não dispara mais o
+  "puxar para atualizar".
+
+### Segurança
+
+- **Instalador sem chave embutida:** `deploy/install.sh` não traz mais a
+  chave do ipify como valor padrão. Servidor já instalado mantém a chave
+  que está no arquivo de ambiente do backend.
+
 ## [1.18.1] - 2026-10-28
 
 ### Corrigido
@@ -561,6 +620,7 @@ aplicativo.
 - Link de Contrato na tela de ONU.
 
 [não lançado]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.18.1...HEAD
+[1.20.0]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.18.1...v1.20.0
 [1.18.1]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.16.0...v1.17.0

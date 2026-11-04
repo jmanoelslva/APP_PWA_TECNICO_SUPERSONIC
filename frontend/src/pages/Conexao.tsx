@@ -28,6 +28,7 @@ import CardPppoe from './conexao/CardPppoe'
 import CardRede from './conexao/CardRede'
 import CardSessaoOnline from './conexao/CardSessaoOnline'
 import CardWifi from './conexao/CardWifi'
+import { statusDoCliente } from '../utils/statusCliente'
 import './Conexao.css'
 
 /**
@@ -39,6 +40,36 @@ import './Conexao.css'
  */
 
 type Bloco = 'roteador' | 'obs' | 'wifi'
+
+type Aba = 'resumo' | 'wifi' | 'roteador' | 'rede'
+
+const ABAS: { chave: Aba; rotulo: string }[] = [
+  { chave: 'resumo', rotulo: 'Resumo' },
+  { chave: 'wifi', rotulo: 'Wi-Fi' },
+  { chave: 'roteador', rotulo: 'Roteador' },
+  { chave: 'rede', rotulo: 'Rede' },
+]
+
+// Blocos recolhíveis que já abrem expandidos ao entrar na aba.
+const BLOCOS_DA_ABA: Record<Aba, Bloco[]> = {
+  resumo: [],
+  wifi: ['wifi'],
+  roteador: ['roteador', 'obs'],
+  rede: [],
+}
+
+// Aba escolhida vale enquanto o app estiver aberto (troca de cliente e
+// continua na mesma parte).
+const CHAVE_ABA = 'supersonic-tecnico-aba-conexao'
+
+function lerAba(): Aba {
+  try {
+    const salva = sessionStorage.getItem(CHAVE_ABA)
+    return ABAS.some((item) => item.chave === salva) ? (salva as Aba) : 'resumo'
+  } catch {
+    return 'resumo'
+  }
+}
 
 export default function Conexao() {
   const [params, setParams] = useSearchParams()
@@ -61,12 +92,27 @@ export default function Conexao() {
   const [cpe, setCpe] = useState<CpeDto | null>(null)
   const [sessao, setSessao] = useState<Record<string, unknown> | null>(null)
   const [carregandoSessao, setCarregandoSessao] = useState(false)
+  // Quando o app leu a sessão (Date.now()) — "Lido há X min" no card.
+  const [sessaoLidaEm, setSessaoLidaEm] = useState<number | null>(null)
   const [onuResumo, setOnuResumo] = useState<OnuDto | null>(null)
   const [carregandoOnuResumo, setCarregandoOnuResumo] = useState(false)
   const [dps, setDps] = useState<DpDto[]>([])
   // Quais cartões recolhíveis estão abertos — fica aqui (e não em cada
   // cartão) para continuar aberto depois de recarregar a conexão.
-  const [blocosAbertos, setBlocosAbertos] = useState<Set<Bloco>>(new Set())
+  const [blocosAbertos, setBlocosAbertos] = useState<Set<Bloco>>(() => new Set(BLOCOS_DA_ABA[lerAba()]))
+  const [aba, setAba] = useState<Aba>(lerAba)
+
+  function escolherAba(nova: Aba) {
+    setAba(nova)
+    try {
+      sessionStorage.setItem(CHAVE_ABA, nova)
+    } catch {
+      // sem armazenamento: vale só nesta tela
+    }
+    // Com as abas separando cada parte, os blocos da aba já abrem
+    // expandidos, sem toque a mais.
+    setBlocosAbertos((atual) => new Set([...atual, ...BLOCOS_DA_ABA[nova]]))
+  }
 
   function alternarBloco(chave: Bloco) {
     setBlocosAbertos((atual) => {
@@ -105,6 +151,7 @@ export default function Conexao() {
     // com o card "Sessão online" já carregado ficava mostrando a sessão
     // ANTIGA. Some agora mesmo antes da nova consulta responder.
     setSessao(null)
+    setSessaoLidaEm(null)
     setOnuResumo(null)
     try {
       const resposta = await buscarInicial()
@@ -133,6 +180,7 @@ export default function Conexao() {
     try {
       const resposta = await buscarSessaoOnlineCpe(cpePk)
       setSessao(resposta.results[0] ?? {})
+      setSessaoLidaEm(Date.now())
     } catch (excecao) {
       toast(excecao instanceof ApiError ? excecao.message : 'Não foi possível consultar a sessão online.')
     } finally {
@@ -190,34 +238,73 @@ export default function Conexao() {
 
         {!carregando && !erro && cpe && (
           <>
-            <CardCliente cpe={cpe} />
-            <CardPppoe cpe={cpe} />
-            <CardAcessoRoteador
+            <CardCliente
               cpe={cpe}
-              aberto={blocosAbertos.has('roteador')}
-              onAlternar={() => alternarBloco('roteador')}
-              onAtualizado={atualizarCpe}
+              status={statusDoCliente({
+                contratos: [],
+                // {} = consultou e não há sessão; null = ainda consultando/falhou.
+                sessoes: [sessao == null ? null : Object.keys(sessao).length > 0],
+              })}
             />
-            <CardObservacao
-              cpe={cpe}
-              aberto={blocosAbertos.has('obs')}
-              onAlternar={() => alternarBloco('obs')}
-              onAtualizado={atualizarCpe}
-            />
-            <CardWifi
-              cpe={cpe}
-              aberto={blocosAbertos.has('wifi')}
-              onAlternar={() => alternarBloco('wifi')}
-              onAtualizado={atualizarCpe}
-            />
-            <CardCto cpe={cpe} dps={dps} onAtualizado={atualizarCpe} />
-            <CardRede cpe={cpe} />
-            <CardSessaoOnline
-              sessao={sessao}
-              carregando={carregandoSessao}
-              onAtualizar={() => cpe.pk != null && carregarSessaoOnline(cpe.pk)}
-            />
-            <CardOnuResumo onu={onuResumo} carregando={carregandoOnuResumo} username={cpe.username} />
+            {/* Abas: o técnico vai direto ao que precisa em vez de rolar
+                por todos os cards. Cliente (com o selo) fica acima, sempre. */}
+            <div className="conexao-abas" role="tablist" aria-label="Partes da conexão">
+              {ABAS.map((item) => (
+                <button
+                  key={item.chave}
+                  type="button"
+                  role="tab"
+                  aria-selected={aba === item.chave}
+                  className={`conexao-aba${aba === item.chave ? ' ativa' : ''}`}
+                  onClick={() => escolherAba(item.chave)}
+                >
+                  {item.rotulo}
+                </button>
+              ))}
+            </div>
+
+            {aba === 'resumo' && (
+              <>
+                <CardPppoe cpe={cpe} />
+                <CardSessaoOnline
+                  sessao={sessao}
+                  carregando={carregandoSessao}
+                  lidaEm={sessaoLidaEm}
+                  onAtualizar={() => cpe.pk != null && carregarSessaoOnline(cpe.pk)}
+                />
+                <CardOnuResumo onu={onuResumo} carregando={carregandoOnuResumo} username={cpe.username} />
+              </>
+            )}
+            {aba === 'wifi' && (
+              <CardWifi
+                cpe={cpe}
+                aberto={blocosAbertos.has('wifi')}
+                onAlternar={() => alternarBloco('wifi')}
+                onAtualizado={atualizarCpe}
+              />
+            )}
+            {aba === 'roteador' && (
+              <>
+                <CardAcessoRoteador
+                  cpe={cpe}
+                  aberto={blocosAbertos.has('roteador')}
+                  onAlternar={() => alternarBloco('roteador')}
+                  onAtualizado={atualizarCpe}
+                />
+                <CardObservacao
+                  cpe={cpe}
+                  aberto={blocosAbertos.has('obs')}
+                  onAlternar={() => alternarBloco('obs')}
+                  onAtualizado={atualizarCpe}
+                />
+              </>
+            )}
+            {aba === 'rede' && (
+              <>
+                <CardCto cpe={cpe} dps={dps} onAtualizado={atualizarCpe} />
+                <CardRede cpe={cpe} />
+              </>
+            )}
           </>
         )}
       </div>

@@ -272,6 +272,10 @@
   margin-top: 10px;
 }
 
+.onu-modal .deslizar {
+  margin-top: 8px;
+}
+
 .onu-acoes-onu .botao {
   flex: 1;
 }

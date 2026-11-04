@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   MdAdd,
+  MdBuild,
   MdCable,
   MdDescription,
   MdEdit,
@@ -18,6 +19,7 @@ import {
   buscarCpe,
   buscarDetalheCliente,
   buscarOnu,
+  buscarSessaoOnlineCpe,
   criarTelefone,
   type ContratoDto,
   type CpeComboDto,
@@ -27,6 +29,11 @@ import {
   type TelefoneDto,
 } from '../api/client'
 import AcoesContato from '../components/AcoesContato'
+import LidoHa from '../components/LidoHa'
+import SeloStatusCliente from '../components/SeloStatusCliente'
+import SecaoRecolhivel from '../components/SecaoRecolhivel'
+import { statusDoCliente } from '../utils/statusCliente'
+import { registrarRecente } from '../utils/buscaUnica'
 import ModalEditarEndereco from '../components/ModalEditarEndereco'
 import Skeleton from '../components/Skeleton'
 import PullToRefresh from '../components/PullToRefresh'
@@ -53,6 +60,10 @@ interface ResumoConexao {
   carregando: boolean
   cpe: CpeDto | null
   onu: OnuDto | null
+  // Sessão RADIUS agora: true/false; null se a consulta falhou.
+  online: boolean | null
+  // Quando o app leu (Date.now()), para o "Lido há X min".
+  lidoEm: number | null
 }
 
 // contract_sign_code/info/draw/ip/hash existem na resposta da API mas
@@ -121,7 +132,9 @@ export default function DetalheCliente() {
     setErro(null)
     try {
       const resposta = await buscarDetalheCliente(pk)
-      setNome(resposta.cliente.client_complete_name ?? resposta.cliente.client_name ?? null)
+      const nomeCliente = resposta.cliente.client_complete_name ?? resposta.cliente.client_name ?? null
+      setNome(nomeCliente)
+      registrarRecente({ pk, nome: nomeCliente ?? `Cliente #${pk}` })
       setDoc(resposta.cliente.client_doc1 ?? null)
       setTelefones(resposta.telefones ?? [])
       setContratos(resposta.contratos)
@@ -142,17 +155,24 @@ export default function DetalheCliente() {
     for (const cpe of listaCpes) {
       if (cpe.cpe_pk == null) continue
       const cpePk = cpe.cpe_pk
-      setResumosConexao((atual) => ({ ...atual, [cpePk]: { carregando: true, cpe: null, onu: null } }))
+      setResumosConexao((atual) => ({
+        ...atual,
+        [cpePk]: { carregando: true, cpe: null, onu: null, online: null, lidoEm: null },
+      }))
       Promise.allSettled([
         buscarCpe({ cpe_pk: cpePk }),
         cpe.cpe_username ? buscarOnu({ username: cpe.cpe_username }) : buscarOnu({ cpe_pk: cpePk }),
-      ]).then(([resultadoCpe, resultadoOnu]) => {
+        // Sessão online alimenta o selo de status do topo.
+        buscarSessaoOnlineCpe(cpePk),
+      ]).then(([resultadoCpe, resultadoOnu, resultadoSessao]) => {
         setResumosConexao((atual) => ({
           ...atual,
           [cpePk]: {
             carregando: false,
             cpe: resultadoCpe.status === 'fulfilled' ? (resultadoCpe.value.results[0] ?? null) : null,
             onu: resultadoOnu.status === 'fulfilled' ? (resultadoOnu.value.results[0] ?? null) : null,
+            online: resultadoSessao.status === 'fulfilled' ? resultadoSessao.value.results.length > 0 : null,
+            lidoEm: Date.now(),
           },
         }))
       })
@@ -162,6 +182,16 @@ export default function DetalheCliente() {
   if (!Number.isFinite(pk)) {
     return <p className="detalhe-cliente-status">Cliente não encontrado.</p>
   }
+
+  const cpesComPk = cpes.filter((cpe) => cpe.cpe_pk != null)
+  const status = statusDoCliente({
+    contratos,
+    sessoes: cpesComPk.map((cpe) => {
+      const resumo = resumosConexao[cpe.cpe_pk as number]
+      return resumo && !resumo.carregando ? resumo.online : null
+    }),
+    carregando,
+  })
 
   return (
     <PullToRefresh aoAtualizar={carregar}>
@@ -183,87 +213,33 @@ export default function DetalheCliente() {
               <span className="detalhe-cliente-icone" style={{ background: CORES.cliente }}>
                 <MdPeopleAlt size={22} color={CORES.branco} />
               </span>
-              <div>
+              <div className="detalhe-cliente-card-texto">
                 <strong>{nome ?? `Cliente #${pk}`}</strong>
                 {doc && <p>Documento: {formatarDocumento(doc)}</p>}
+                <SeloStatusCliente status={status} />
               </div>
             </div>
 
-            <section className="detalhe-cliente-secao">
-              <h2>Financeiro</h2>
-              <div className="detalhe-cliente-item-acoes">
-                <Link
-                  to={`/financeiro?client_pk=${pk}`}
-                  className="botao botao-secundario botao-pequeno"
-                  style={{ '--botao-cor': CORES.financeiro } as CSSProperties}
-                  viewTransition
-                >
-                  <MdReceipt size={14} /> Cobranças
-                </Link>
-              </div>
-            </section>
-
-            <section className="detalhe-cliente-secao">
-              <h2>Telefones</h2>
-              {telefones.length === 0 && <p className="detalhe-cliente-vazio">Nenhum telefone cadastrado.</p>}
-              {telefones.map((tel) => (
-                <div key={tel.phone_pk} className="detalhe-cliente-item">
-                  <div className="detalhe-cliente-item-topo">
-                    <strong>{tel.phone_identification ?? 'Telefone'}</strong>
-                    <button className="detalhe-cliente-btn-icone" onClick={() => setTelefoneEditando(tel)} aria-label="Editar telefone">
-                      <MdEdit size={18} />
-                    </button>
-                  </div>
-                  <p>{tel.phone_number ? formatarTelefone(tel.phone_number) : 'Número não informado'}</p>
-                  <AcoesContato numero={tel.phone_number} />
-                </div>
-              ))}
-              <button
-                type="button"
-                className="botao botao-secundario botao-pequeno"
-                style={{ '--botao-cor': CORES.cliente } as CSSProperties}
-                onClick={() => setAdicionandoTelefone(true)}
+            {/* Atalhos do cliente — Conexão e ONU não entram aqui: cada
+                conexão logo abaixo já tem os seus botões. */}
+            <nav className="detalhe-cliente-atalhos" aria-label="Atalhos do cliente">
+              <Link
+                to={`/suporte?busca=${encodeURIComponent(nome ?? '')}`}
+                className="detalhe-cliente-atalho"
+                style={{ '--atalho-cor': CORES.suporte } as CSSProperties}
+                viewTransition
               >
-                <MdAdd size={14} /> Adicionar telefone
-              </button>
-            </section>
-
-            <section className="detalhe-cliente-secao">
-              <h2>Endereços</h2>
-              {enderecos.length === 0 && <p className="detalhe-cliente-vazio">Nenhum endereço cadastrado.</p>}
-              {enderecos.map((endereco) => (
-                <div key={endereco.address_pk} className="detalhe-cliente-item">
-                  <div className="detalhe-cliente-item-topo">
-                    <strong>{endereco.address_identification ?? 'Endereço'}</strong>
-                    <button className="detalhe-cliente-btn-icone" onClick={() => setEnderecoEditando(endereco)} aria-label="Editar endereço">
-                      <MdEdit size={18} />
-                    </button>
-                  </div>
-                  <p>
-                    {[endereco.address, endereco.address_number, endereco.address_neighborhood]
-                      .filter(Boolean)
-                      .join(', ') || 'Endereço não informado'}
-                  </p>
-                  {(endereco.address_province || endereco.address_state) && (
-                    <p>{[endereco.address_province, endereco.address_state].filter(Boolean).join(' - ')}</p>
-                  )}
-                  {endereco.address_zipcode && <p>CEP: {formatarCep(endereco.address_zipcode)}</p>}
-                  {endereco.address_latitude && endereco.address_longitude && (
-                    <div className="detalhe-cliente-item-acoes">
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${endereco.address_latitude},${endereco.address_longitude}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="botao botao-secundario botao-pequeno"
-                        style={{ '--botao-cor': CORES.endereco } as CSSProperties}
-                      >
-                        <MdLocationOn size={14} /> Ver no Google Maps
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </section>
+                <MdBuild size={22} /> OS
+              </Link>
+              <Link
+                to={`/financeiro?client_pk=${pk}`}
+                className="detalhe-cliente-atalho"
+                style={{ '--atalho-cor': CORES.financeiro } as CSSProperties}
+                viewTransition
+              >
+                <MdReceipt size={22} /> Financeiro
+              </Link>
+            </nav>
 
             <section className="detalhe-cliente-secao">
               <h2>Conexões (CPE)</h2>
@@ -277,6 +253,14 @@ export default function DetalheCliente() {
                     {(cpe.contract_number ?? cpe.contract_pk) != null && <p>Contrato: {cpe.contract_number ?? cpe.contract_pk}</p>}
 
                     {resumo?.carregando && <p className="detalhe-cliente-resumo-carregando">Consultando conexão e ONU…</p>}
+
+                    {resumo && !resumo.carregando && (
+                      <p className="detalhe-cliente-lido">
+                        {resumo.online === true ? 'Online agora' : resumo.online === false ? 'Sem sessão agora' : 'Sessão não consultada'}
+                        {' · '}
+                        <LidoHa momento={resumo.lidoEm} />
+                      </p>
+                    )}
 
                     {resumo && !resumo.carregando && (resumo.cpe || resumo.onu) && (
                       <div className="detalhe-cliente-resumo-grid">
@@ -342,8 +326,67 @@ export default function DetalheCliente() {
               })}
             </section>
 
-            <section className="detalhe-cliente-secao">
-              <h2>Contratos</h2>
+            <SecaoRecolhivel className="detalhe-cliente-secao" titulo="Telefones" resumo={`${telefones.length} ${telefones.length === 1 ? 'telefone' : 'telefones'}`}>
+              {telefones.length === 0 && <p className="detalhe-cliente-vazio">Nenhum telefone cadastrado.</p>}
+              {telefones.map((tel) => (
+                <div key={tel.phone_pk} className="detalhe-cliente-item">
+                  <div className="detalhe-cliente-item-topo">
+                    <strong>{tel.phone_identification ?? 'Telefone'}</strong>
+                    <button className="detalhe-cliente-btn-icone" onClick={() => setTelefoneEditando(tel)} aria-label="Editar telefone">
+                      <MdEdit size={18} />
+                    </button>
+                  </div>
+                  <p>{tel.phone_number ? formatarTelefone(tel.phone_number) : 'Número não informado'}</p>
+                  <AcoesContato numero={tel.phone_number} />
+                </div>
+              ))}
+              <button
+                type="button"
+                className="botao botao-secundario botao-pequeno"
+                style={{ '--botao-cor': CORES.cliente } as CSSProperties}
+                onClick={() => setAdicionandoTelefone(true)}
+              >
+                <MdAdd size={14} /> Adicionar telefone
+              </button>
+            </SecaoRecolhivel>
+
+            <SecaoRecolhivel className="detalhe-cliente-secao" titulo="Endereços" resumo={`${enderecos.length} ${enderecos.length === 1 ? 'endereço' : 'endereços'}`}>
+              {enderecos.length === 0 && <p className="detalhe-cliente-vazio">Nenhum endereço cadastrado.</p>}
+              {enderecos.map((endereco) => (
+                <div key={endereco.address_pk} className="detalhe-cliente-item">
+                  <div className="detalhe-cliente-item-topo">
+                    <strong>{endereco.address_identification ?? 'Endereço'}</strong>
+                    <button className="detalhe-cliente-btn-icone" onClick={() => setEnderecoEditando(endereco)} aria-label="Editar endereço">
+                      <MdEdit size={18} />
+                    </button>
+                  </div>
+                  <p>
+                    {[endereco.address, endereco.address_number, endereco.address_neighborhood]
+                      .filter(Boolean)
+                      .join(', ') || 'Endereço não informado'}
+                  </p>
+                  {(endereco.address_province || endereco.address_state) && (
+                    <p>{[endereco.address_province, endereco.address_state].filter(Boolean).join(' - ')}</p>
+                  )}
+                  {endereco.address_zipcode && <p>CEP: {formatarCep(endereco.address_zipcode)}</p>}
+                  {endereco.address_latitude && endereco.address_longitude && (
+                    <div className="detalhe-cliente-item-acoes">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${endereco.address_latitude},${endereco.address_longitude}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="botao botao-secundario botao-pequeno"
+                        style={{ '--botao-cor': CORES.endereco } as CSSProperties}
+                      >
+                        <MdLocationOn size={14} /> Ver no Google Maps
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </SecaoRecolhivel>
+
+            <SecaoRecolhivel className="detalhe-cliente-secao" titulo="Contratos" resumo={`${contratos.length} ${contratos.length === 1 ? 'contrato' : 'contratos'}`}>
               {contratos.length === 0 && <p className="detalhe-cliente-vazio">Nenhum contrato encontrado.</p>}
               {contratos.map((contrato, indice) => {
                 const chave = contrato.contract_pk ?? indice
@@ -420,7 +463,7 @@ export default function DetalheCliente() {
                   </div>
                 )
               })}
-            </section>
+            </SecaoRecolhivel>
           </>
         )}
 
