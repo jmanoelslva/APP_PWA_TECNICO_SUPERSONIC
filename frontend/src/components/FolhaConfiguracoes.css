@@ -47,6 +47,25 @@
   color: var(--cor-texto);
 }
 
+.folha-config-perfil {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.folha-config-avatar {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--cor-primaria-escura);
+  color: var(--cor-branco-fixo);
+  font-size: 18px;
+  font-weight: 800;
+}
+
 .folha-config-usuario {
   margin: 2px 0 0;
   font-size: 13px;
@@ -60,6 +79,46 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--cor-texto-secundario);
+}
+
+.folha-config-segmentos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 10px;
+  border-radius: 14px;
+  background: var(--cor-fundo);
+  border: 1px solid var(--cor-borda);
+}
+
+.folha-config-segmento {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 60px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cor-texto-secundario);
+  cursor: pointer;
+}
+
+.folha-config-segmento[aria-checked='true'] {
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  font-weight: 700;
+  box-shadow: 0 0 0 1.5px var(--cor-primaria);
+}
+
+.folha-config-segmento:focus-visible {
+  outline: 3px solid var(--cor-primaria);
+  outline-offset: 1px;
 }
 
 .folha-config-grupo {

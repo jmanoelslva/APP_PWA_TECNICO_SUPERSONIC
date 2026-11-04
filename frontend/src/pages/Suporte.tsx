@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { MdBuild, MdClose, MdDirections, MdSearch } from 'react-icons/md'
+import { MdClose, MdDirections, MdSearch } from 'react-icons/md'
+import { LuSearchX, LuWrench } from 'react-icons/lu'
 import { ApiError, listarOrdensServico, type OrdemServicoDto } from '../api/client'
+import Abas from '../components/Abas'
 import CabecalhoTela from '../components/CabecalhoTela'
 import Skeleton from '../components/Skeleton'
 import EstadoVazio from '../components/EstadoVazio'
@@ -54,11 +56,18 @@ export default function Suporte() {
 
   const [ordens, setOrdens] = useState<OrdemServicoDto[]>([])
   const [params] = useSearchParams()
-  // ?busca= vem do atalho "OS" da tela do cliente: já abre filtrado nele.
-  const [filtro, setFiltro] = useState<FiltroOs>(() => {
-    const busca = params.get('busca')?.trim()
-    return busca ? { ...FILTRO_VAZIO, busca } : lerFiltro()
-  })
+  // Filtro pelo endereço: ?busca= vem do atalho "OS" da tela do cliente e
+  // ?quando= dos números do dia no Início (Abertas → hoje, Atrasadas →
+  // atrasadas). Vale só nesta visita — não vira o filtro lembrado (antes o
+  // nome do cliente continuava na busca ao voltar para OS pela barra).
+  const buscaDoEndereco = params.get('busca')?.trim() ?? ''
+  const quandoDoEndereco = OPCOES_QUANDO.find((o) => o.valor === params.get('quando'))?.valor
+  const filtroDoEndereco: FiltroOs | null =
+    buscaDoEndereco || quandoDoEndereco
+      ? { ...FILTRO_VAZIO, busca: buscaDoEndereco, quando: quandoDoEndereco ?? 'todas' }
+      : null
+  const chaveDoEndereco = `${buscaDoEndereco}|${quandoDoEndereco ?? ''}`
+  const [filtro, setFiltro] = useState<FiltroOs>(() => filtroDoEndereco ?? lerFiltro())
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -67,7 +76,18 @@ export default function Suporte() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Mesma tela reaproveitada ao trocar de endereço (ex.: OS do cliente →
+  // "OS" na barra de baixo): acompanha o filtro do endereço novo.
+  const enderecoAnterior = useRef(chaveDoEndereco)
   useEffect(() => {
+    if (enderecoAnterior.current === chaveDoEndereco) return
+    enderecoAnterior.current = chaveDoEndereco
+    setFiltro(filtroDoEndereco ?? lerFiltro())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chaveDoEndereco])
+
+  useEffect(() => {
+    if (filtroDoEndereco) return
     try {
       sessionStorage.setItem(CHAVE_FILTRO, JSON.stringify(filtro))
     } catch {
@@ -100,7 +120,7 @@ export default function Suporte() {
   return (
     <PullToRefresh aoAtualizar={carregar}>
       <div className="suporte-tela tela-entrada">
-        <CabecalhoTela icone={MdBuild} cor={CORES.suporte} titulo="OS / Suporte" subtitulo="Ordens de serviço agendadas." />
+        <CabecalhoTela icone={LuWrench} cor={CORES.suporte} titulo="OS / Suporte" subtitulo="Ordens de serviço agendadas." />
 
         {carregando && (
           <ul className="suporte-lista">
@@ -120,7 +140,7 @@ export default function Suporte() {
 
         {!carregando && !erro && ordens.length === 0 && (
           <EstadoVazio
-            icone={MdBuild}
+            icone={LuWrench}
             titulo="Nenhuma OS aberta"
             subtitulo="Quando uma OS for agendada, ela aparece aqui."
             acao={{ rotulo: 'Atualizar lista', onClick: carregar }}
@@ -135,7 +155,7 @@ export default function Suporte() {
                 type="search"
                 value={filtro.busca}
                 onChange={(e) => mudar({ busca: e.target.value })}
-                placeholder="Cliente, rua, bairro, serviço ou protocolo"
+                placeholder="Cliente, endereço ou protocolo"
                 aria-label="Buscar OS"
                 autoCapitalize="none"
                 autoCorrect="off"
@@ -143,22 +163,19 @@ export default function Suporte() {
               />
             </div>
 
-            <div className="suporte-chips" role="group" aria-label="Quando">
-              {OPCOES_QUANDO.map((opcao) => (
-                <button
-                  key={opcao.valor}
-                  type="button"
-                  className={`suporte-chip suporte-chip-${opcao.valor}${filtro.quando === opcao.valor ? ' ativo' : ''}`}
-                  aria-pressed={filtro.quando === opcao.valor}
-                  onClick={() => mudar({ quando: opcao.valor })}
-                >
-                  {opcao.rotulo}
-                </button>
-              ))}
-            </div>
+            {/* Mesmo componente de abas das outras telas (antes eram 4
+                botões cada um de uma cor). */}
+            <Abas
+              abas={OPCOES_QUANDO.map((opcao) => ({ chave: opcao.valor, rotulo: opcao.rotulo }))}
+              ativa={filtro.quando}
+              onEscolher={(quando) => mudar({ quando })}
+              cor={CORES.suporte}
+              rotulo="Quando"
+            />
 
             <div className="suporte-selects">
               <select
+                className="campo"
                 value={filtro.etapa}
                 onChange={(e) => mudar({ etapa: e.target.value as FiltroOs['etapa'] })}
                 aria-label="Etapa"
@@ -168,7 +185,12 @@ export default function Suporte() {
                 <option value="respondida">Respondida</option>
                 <option value="iniciada">Em andamento</option>
               </select>
-              <select value={filtro.tarefa} onChange={(e) => mudar({ tarefa: e.target.value })} aria-label="Tipo de serviço">
+              <select
+                className="campo"
+                value={filtro.tarefa}
+                onChange={(e) => mudar({ tarefa: e.target.value })}
+                aria-label="Tipo de serviço"
+              >
                 <option value="">Todos os serviços</option>
                 {/* Mantém a escolha mesmo se o serviço sumiu da lista ao atualizar. */}
                 {[...new Set([...tarefas, ...(filtro.tarefa ? [filtro.tarefa] : [])])].map((tarefa) => (
@@ -181,7 +203,7 @@ export default function Suporte() {
 
             <div className="suporte-resumo">
               <span>{comFiltro ? `${filtradas.length} de ${ordens.length} OS` : `${ordens.length} OS`}</span>
-              {comFiltro && (
+              {comFiltro && filtradas.length > 0 && (
                 <button type="button" className="suporte-limpar" onClick={() => setFiltro(FILTRO_VAZIO)}>
                   <MdClose size={16} /> Limpar filtros
                 </button>
@@ -192,7 +214,7 @@ export default function Suporte() {
 
         {!carregando && !erro && ordens.length > 0 && filtradas.length === 0 && (
           <EstadoVazio
-            icone={MdSearch}
+            icone={LuSearchX}
             titulo="Nenhuma OS com esses filtros"
             subtitulo={filtro.busca ? `Nenhuma OS aberta para "${filtro.busca}".` : 'Mude ou limpe os filtros acima.'}
             acao={{ rotulo: 'Limpar filtros', onClick: () => setFiltro(FILTRO_VAZIO) }}

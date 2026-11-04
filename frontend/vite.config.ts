@@ -33,6 +33,8 @@ export default defineConfig({
         // service worker não pode responder essas navegações com o
         // index.html do técnico.
         navigateFallbackDenylist: [/^\/api\//, /^\/olt(\/|$)/],
+        // Padrão (js/css/html) + a fonte Inter local, para abrir já com ela.
+        globPatterns: ['**/*.{js,css,html,woff2}'],
         skipWaiting: true,
         clientsClaim: true,
         // Avisos de OS nova (Web Push): o "push" e o toque no aviso ficam em
@@ -50,8 +52,8 @@ export default defineConfig({
         // Cor da tela de abertura (só aceita uma): a escura pisca menos que
         // um clarão para quem usa o tema escuro; o index.html pinta o fundo
         // do tema certo logo em seguida.
-        background_color: '#121316',
-        theme_color: '#0d3bd8',
+        background_color: '#082a9e',
+        theme_color: '#082a9e',
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },

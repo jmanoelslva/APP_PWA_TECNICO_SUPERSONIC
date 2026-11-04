@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { MdBuild, MdCable, MdConstruction, MdRouter, MdSearch, MdWifi, MdWifiOff } from 'react-icons/md'
+import { MdQrCodeScanner, MdSearch } from 'react-icons/md'
+// Atalhos com ícones Lucide, iguais aos da barra de baixo.
+import { LuCalendarClock, LuChevronRight, LuHammer, LuServer, LuWifiOff } from 'react-icons/lu'
 import { useSessao } from '../auth/useSessao'
 import { CORES, comAlpha } from '../utils/cores'
 import { usePwaInstall } from '../hooks/usePwaInstall'
@@ -8,6 +10,7 @@ import { useColetorOlt } from '../hooks/useColetorOlt'
 import { useAvisos } from '../hooks/useAvisos'
 import ModalInstalarIos from '../components/ModalInstalarIos'
 import ModalConfirmarLogout from '../components/ModalConfirmarLogout'
+import LeitorCodigoBarras from '../components/LeitorCodigoBarras'
 import FolhaConfiguracoes from '../components/FolhaConfiguracoes'
 import MinhasOsHoje, { type ResumoDoDia } from '../components/MinhasOsHoje'
 import PullToRefresh from '../components/PullToRefresh'
@@ -15,12 +18,13 @@ import {
   buscarClientes,
   buscarCpe,
   buscarOnu,
+  listarCpeOffline,
   resumoDoDia,
   type BuscaClienteResultado,
   type CpeDto,
   type OnuDto,
 } from '../api/client'
-import { dataParaFormatoServidor, detectarTipoBusca, formatarDocumento } from '../utils/formatacao'
+import { dataParaFormatoServidor, detectarTipoBusca, formatarDocumento, iniciais } from '../utils/formatacao'
 import './Home.css'
 
 function saudacaoPorHorario(nome: string): string {
@@ -29,30 +33,16 @@ function saudacaoPorHorario(nome: string): string {
   return `${periodo}, ${nome}!`
 }
 
-// "Clientes" saiu daqui de propósito — virou o campo de busca direto no
-// topo da tela (ver <form> abaixo), como primeira opção, em vez de mais
-// um botão que só leva para outra tela para então buscar.
-const ITENS_MENU = [
-  { to: '/suporte', Icone: MdBuild, cor: CORES.suporte, label: 'OS / Suporte' },
-  { to: '/conexao', Icone: MdWifi, cor: CORES.conexao, label: 'Conexão' },
-  { to: '/onu', Icone: MdCable, cor: CORES.onu, label: 'ONU' },
-  { to: '/offline', Icone: MdWifiOff, cor: CORES.offline, label: 'Clientes Offline' },
-  { to: '/ferramentas', Icone: MdConstruction, cor: CORES.ferramentas, label: 'Ferramentas' },
-]
-
-/** "JM" de "jmanoelslva"; "MS" de "maria.silva" (partes separadas por . _ - ou espaço). */
-function iniciais(usuario: string | undefined): string {
-  const partes = (usuario ?? '').split(/[.\s_-]+/).filter(Boolean)
-  if (partes.length >= 2) return (partes[0][0] + partes[1][0]).toUpperCase()
-  return (partes[0] ?? '?').slice(0, 2).toUpperCase()
+// Atalhos em lista, cada um com uma informação útil. Sem "OS / Suporte",
+// Conexão e ONU (já estão na barra de baixo) e sem "Clientes" (é a busca
+// do topo).
+function plural(n: number, um: string, varios: string): string {
+  return n === 1 ? `1 ${um}` : `${n} ${varios}`
 }
 
-function textoResumo(resumo: ResumoDoDia | null): string {
-  const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })
-  if (!resumo) return hoje
-  if (resumo.total === 0) return `${hoje} · nenhuma OS para hoje`
-  const os = resumo.total === 1 ? '1 OS para hoje' : `${resumo.total} OS para hoje`
-  return resumo.atrasadas ? `${os} · ${resumo.atrasadas} atrasada${resumo.atrasadas > 1 ? 's' : ''}` : os
+/** Data de hoje ("quarta-feira, 04/11") — as quantidades ficam nos números abaixo. */
+function textoHoje(): string {
+  return new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })
 }
 
 export default function Home() {
@@ -67,6 +57,9 @@ export default function Home() {
   // Barra "X de Y OS concluídas": vem de rota própria porque a lista de OS
   // tira as finalizadas/fechadas (ver backend ordens_servico.py::resumo_do_dia).
   const [progresso, setProgresso] = useState<{ total: number; concluidas: number } | null>(null)
+  // Quantos clientes estão offline agora (atalho "Clientes Offline"). Só o
+  // total: a consulta pede 1 registro.
+  const [totalOffline, setTotalOffline] = useState<number | null>(null)
   const avisos = useAvisos()
   // Por que o interruptor está travado, quando está.
   const dicaAvisos =
@@ -93,6 +86,8 @@ export default function Home() {
   const [conexoesBusca, setConexoesBusca] = useState<CpeDto[]>([])
   const [buscando, setBuscando] = useState(false)
   const [listaAberta, setListaAberta] = useState(false)
+  // Leitor pela câmera (etiqueta da ONU: código de barras ou QR).
+  const [lendoCodigo, setLendoCodigo] = useState(false)
 
   // Muda a cada "puxar para atualizar" — remonta MinhasOsHoje, que relê a
   // lista sozinha ao montar.
@@ -103,6 +98,11 @@ export default function Home() {
     resumoDoDia(dataParaFormatoServidor(new Date()).slice(0, 10))
       .then((resposta) => {
         if (!cancelado) setProgresso({ total: resposta.total, concluidas: resposta.concluidas })
+      })
+      .catch(() => {})
+    listarCpeOffline({ start: 0, limit: 1 })
+      .then((resposta) => {
+        if (!cancelado) setTotalOffline(resposta.total)
       })
       .catch(() => {})
     return () => {
@@ -145,9 +145,14 @@ export default function Home() {
 
   async function atualizarTela() {
     setRecarga((atual) => atual + 1)
-    await resumoDoDia(dataParaFormatoServidor(new Date()).slice(0, 10))
-      .then((resposta) => setProgresso({ total: resposta.total, concluidas: resposta.concluidas }))
-      .catch(() => {})
+    await Promise.all([
+      resumoDoDia(dataParaFormatoServidor(new Date()).slice(0, 10))
+        .then((resposta) => setProgresso({ total: resposta.total, concluidas: resposta.concluidas }))
+        .catch(() => {}),
+      listarCpeOffline({ start: 0, limit: 1 })
+        .then((resposta) => setTotalOffline(resposta.total))
+        .catch(() => {}),
+    ])
   }
 
   async function aoClicarInstalarMenu() {
@@ -168,30 +173,10 @@ export default function Home() {
     <PullToRefresh aoAtualizar={atualizarTela}>
       <div className="home-tela tela-entrada">
         <div className="home-conteudo">
-          <header
-            className="home-cabecalho"
-            style={{ background: comAlpha(CORES.primaria, 8), borderColor: comAlpha(CORES.primaria, 20) }}
-          >
+          <header className="home-cabecalho">
             <div className="home-header-saudacao">
               <span className="home-saudacao">{saudacaoPorHorario(tecnico?.username ?? 'Técnico')}</span>
-              <span className="home-resumo">{textoResumo(resumoDia)}</span>
-              {progresso && progresso.total > 0 && (
-                <div className="home-progresso">
-                  <div
-                    className="home-progresso-trilho"
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={progresso.total}
-                    aria-valuenow={progresso.concluidas}
-                    aria-label="OS concluídas hoje"
-                  >
-                    <span style={{ width: `${(progresso.concluidas / progresso.total) * 100}%` }} />
-                  </div>
-                  <span className="home-progresso-texto">
-                    {progresso.concluidas} de {progresso.total} OS concluída{progresso.total > 1 ? 's' : ''}
-                  </span>
-                </div>
-              )}
+              <span className="home-resumo">{textoHoje()}</span>
             </div>
 
             <div className="home-avatar-wrapper">
@@ -199,6 +184,42 @@ export default function Home() {
                 {iniciais(tecnico?.username)}
               </button>
             </div>
+            {/* Números do dia: o que está aberto, o que atrasou e o que já
+                foi concluído hoje. */}
+            {/* Os três com o mesmo destaque. Abertas e Atrasadas levam à tela
+                de OS já filtrada; Concluídas não tem lista (a tela de OS só
+                carrega OS em aberto). */}
+            <nav className="home-numeros" aria-label="OS do dia">
+              <Link to="/suporte?quando=hoje" className="home-numero" viewTransition>
+                <strong>{resumoDia?.total ?? '–'}</strong>
+                <span>Abertas</span>
+              </Link>
+              <Link to="/suporte?quando=atrasadas" className="home-numero" viewTransition>
+                <strong>{resumoDia?.atrasadas ?? '–'}</strong>
+                <span>Atrasadas</span>
+              </Link>
+              <div className="home-numero">
+                <strong>{progresso?.concluidas ?? '–'}</strong>
+                <span>Concluídas</span>
+              </div>
+            </nav>
+            {progresso && progresso.total > 0 && (
+              <div className="home-progresso">
+                <div
+                  className="home-progresso-trilho"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={progresso.total}
+                  aria-valuenow={progresso.concluidas}
+                  aria-label="OS concluídas hoje"
+                >
+                  <span style={{ width: `${(progresso.concluidas / progresso.total) * 100}%` }} />
+                </div>
+                <span className="home-progresso-texto">
+                  {progresso.concluidas} de {progresso.total} OS concluída{progresso.total > 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
           </header>
 
           <form className="home-busca home-combobox" onSubmit={aoBuscar}>
@@ -209,11 +230,20 @@ export default function Home() {
                 onChange={(e) => setBusca(e.target.value)}
                 onFocus={() => setListaAberta(true)}
                 onBlur={() => setTimeout(() => setListaAberta(false), 150)}
-                placeholder="Cliente, contrato, CPF, serial da ONU ou PPPoE"
+                placeholder="Cliente, CPF, contrato, ONU, PPPoE"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
               />
+              <button
+                type="button"
+                className="home-busca-leitor"
+                onClick={() => setLendoCodigo(true)}
+                aria-label="Ler código de barras ou QR pela câmera"
+                title="Ler código de barras ou QR pela câmera"
+              >
+                <MdQrCodeScanner size={22} />
+              </button>
             </div>
             {listaAberta && busca.trim().length >= 2 && (
               <ul className="home-combobox-lista">
@@ -283,33 +313,82 @@ export default function Home() {
 
           <MinhasOsHoje key={recarga} onResumo={setResumoDia} />
 
-          <div className="home-menu">
-            {ITENS_MENU.map((item) => (
-              <Link key={item.to} to={item.to} className="home-menu-item" viewTransition>
-                {/* Fundo em tom claro da cor da área e ícone na cor cheia: a
-                    grade fica mais calma que 6 blocos sólidos e o ícone passa
-                    no contraste nos dois temas. */}
-                <span className="home-menu-icone" style={{ background: comAlpha(item.cor, 14), color: item.cor }}>
-                  <item.Icone size={24} />
+          <nav className="home-atalhos" aria-label="Atalhos">
+            <Link to="/suporte?quando=proximas" className="home-atalho" viewTransition>
+              <span className="home-atalho-icone" style={{ background: comAlpha(CORES.suporte, 14), color: CORES.suporte }}>
+                <LuCalendarClock size={22} />
+              </span>
+              <span className="home-atalho-texto">
+                <strong>Próximas OS</strong>
+                <span>
+                  {resumoDia == null
+                    ? 'Agendadas para os próximos dias'
+                    : resumoDia.proximas === 0
+                      ? 'Nenhuma agendada para os próximos dias'
+                      : `${plural(resumoDia.proximas, 'agendada', 'agendadas')} para os próximos dias`}
                 </span>
-                <span className="home-menu-label">{item.label}</span>
-              </Link>
-            ))}
+              </span>
+              <LuChevronRight size={20} className="home-atalho-seta" aria-hidden="true" />
+            </Link>
+            <Link to="/offline" className="home-atalho" viewTransition>
+              <span className="home-atalho-icone" style={{ background: comAlpha(CORES.offline, 14), color: CORES.offline }}>
+                <LuWifiOff size={22} />
+              </span>
+              <span className="home-atalho-texto">
+                <strong>Clientes offline</strong>
+                <span>
+                  {totalOffline == null ? (
+                    'Sem sessão de internet agora'
+                  ) : (
+                    <>
+                      <b className="home-atalho-destaque">{totalOffline}</b> offline agora
+                    </>
+                  )}
+                </span>
+              </span>
+              <LuChevronRight size={20} className="home-atalho-seta" aria-hidden="true" />
+            </Link>
+            <Link to="/ferramentas" className="home-atalho" viewTransition>
+              <span className="home-atalho-icone" style={{ background: comAlpha(CORES.ferramentas, 14), color: CORES.ferramentas }}>
+                <LuHammer size={22} />
+              </span>
+              <span className="home-atalho-texto">
+                <strong>Ferramentas</strong>
+                <span>Meu IP e testes de velocidade</span>
+              </span>
+              <LuChevronRight size={20} className="home-atalho-seta" aria-hidden="true" />
+            </Link>
             {/* Coletor de OLTs: outro app no mesmo domínio (/olt/), opcional —
                 só aparece se estiver instalado. Link normal (não do router):
                 sai do PWA do técnico e abre o coletor, que usa a mesma sessão. */}
             {coletorOlt && (
-              <a href="/olt/" className="home-menu-item">
-                <span className="home-menu-icone" style={{ background: comAlpha(CORES.olts, 14), color: CORES.olts }}>
-                  <MdRouter size={24} />
+              <a href="/olt/" className="home-atalho">
+                <span className="home-atalho-icone" style={{ background: comAlpha(CORES.olts, 14), color: CORES.olts }}>
+                  <LuServer size={22} />
                 </span>
-                <span className="home-menu-label">OLTs</span>
+                <span className="home-atalho-texto">
+                  <strong>OLTs</strong>
+                  <span>Coletor de OLTs</span>
+                </span>
+                <LuChevronRight size={20} className="home-atalho-seta" aria-hidden="true" />
               </a>
             )}
-          </div>
+          </nav>
 
         </div>
 
+        {/* O código lido entra no campo: a busca geral já procura serial de
+            ONU, PPPoE e cliente ao mesmo tempo. */}
+        {lendoCodigo && (
+          <LeitorCodigoBarras
+            onDetectado={(valor) => {
+              setLendoCodigo(false)
+              setBusca(valor.trim())
+              setListaAberta(true)
+            }}
+            onFechar={() => setLendoCodigo(false)}
+          />
+        )}
         <ModalInstalarIos aberto={modalIosAberto} onFechar={fecharModalIos} />
         <FolhaConfiguracoes
           aberto={configuracoesAberta}

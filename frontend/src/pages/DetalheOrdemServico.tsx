@@ -9,14 +9,14 @@ import {
   MdEdit,
   MdLocationOn,
   MdPeopleAlt,
+  MdPhotoCamera,
   MdPlayArrow,
   MdVisibility,
   MdVisibilityOff,
   MdWifi,
 } from 'react-icons/md'
 import ModalEditarEndereco from '../components/ModalEditarEndereco'
-import VoltarInicio from '../components/VoltarInicio'
-import SecaoRecolhivel from '../components/SecaoRecolhivel'
+import Abas, { useAbaLembrada, type Aba } from '../components/Abas'
 import LidoHa from '../components/LidoHa'
 import PullToRefresh from '../components/PullToRefresh'
 import AcoesContato from '../components/AcoesContato'
@@ -58,6 +58,9 @@ import {
   TEXTO_SINAL_ONU,
 } from '../utils/formatacao'
 import { linkRota, osAtrasada, quandoOs } from '../utils/minhasOs'
+import { comprimirImagem } from '../utils/imagem'
+import { EVENTO_FILA, ehFalhaDeRede, enfileirarAnexo, type DetalheEventoFila } from '../utils/filaAnexos'
+import { ITENS_CHECKLIST, lerChecklist, salvarChecklist, textoChecklist } from '../utils/checklistSaida'
 import './DetalheOrdemServico.css'
 
 interface AnexoEnviado {
@@ -65,7 +68,17 @@ interface AnexoEnviado {
   nome: string
   /** URL local da imagem escolhida (null quando não é imagem). */
   previa: string | null
-  situacao: 'enviando' | 'enviado' | 'erro'
+  /** 'fila': sem sinal, guardado no aparelho até a internet voltar. */
+  situacao: 'enviando' | 'enviado' | 'erro' | 'fila'
+  /** Id na fila de anexos (utils/filaAnexos.ts), quando foi para a fila. */
+  filaId?: number
+}
+
+const TEXTO_SITUACAO_ANEXO: Record<AnexoEnviado['situacao'], string> = {
+  enviando: 'Enviando…',
+  enviado: 'Enviado',
+  erro: 'Falhou',
+  fila: 'Na fila: sai quando o sinal voltar',
 }
 
 // Os 4 estágios de uma OS (não documentado oficialmente): Agendada
@@ -186,7 +199,20 @@ function enderecoResumo(endereco: { address?: string; address_number?: string; a
   )
 }
 
-export default function DetalheOrdemServico() {
+type AbaOs = 'resumo' | 'conexao' | 'checklist' | 'historico'
+
+// O topo (título, etapas, rota e contato) e o botão do rodapé ficam fora das
+// abas, sempre à vista. "Checklist" junta o que se faz ao terminar o
+// atendimento: checklist de saída e fotos/anexos.
+const ABAS: Aba<AbaOs>[] = [
+  { chave: 'resumo', rotulo: 'Resumo' },
+  { chave: 'conexao', rotulo: 'Conexão' },
+  { chave: 'checklist', rotulo: 'Checklist' },
+  { chave: 'historico', rotulo: 'Histórico' },
+]
+
+function DetalheOrdemServicoConteudo() {
+  const [aba, setAba] = useAbaLembrada('supersonic-tecnico-aba-os', ABAS)
   const { ticketPk } = useParams<{ ticketPk: string }>()
   const pk = Number(ticketPk)
   const location = useLocation()
@@ -221,8 +247,34 @@ export default function DetalheOrdemServico() {
   const urlsPreviaRef = useRef<string[]>([])
 
   const inputArquivoRef = useRef<HTMLInputElement>(null)
+  const inputCameraRef = useRef<HTMLInputElement>(null)
+  // Checklist de saída desta OS (salvo no aparelho por OS).
+  const [checklist, setChecklist] = useState<string[]>([])
 
   useEffect(() => () => urlsPreviaRef.current.forEach((url) => URL.revokeObjectURL(url)), [])
+
+  useEffect(() => {
+    if (osAtual?.op_pk) setChecklist(lerChecklist(osAtual.op_pk))
+  }, [osAtual?.op_pk])
+
+  // Anexo que estava na fila saiu (ou foi recusado) com a tela aberta.
+  useEffect(() => {
+    function aoMudarFila(evento: Event) {
+      const { id, resultado } = (evento as CustomEvent<DetalheEventoFila>).detail
+      setAnexosEnviados((atuais) =>
+        atuais.map((a) => (a.filaId === id ? { ...a, situacao: resultado === 'enviado' ? 'enviado' : 'erro' } : a)),
+      )
+    }
+    window.addEventListener(EVENTO_FILA, aoMudarFila)
+    return () => window.removeEventListener(EVENTO_FILA, aoMudarFila)
+  }, [])
+
+  function alternarItemChecklist(chave: string) {
+    if (!osAtual?.op_pk) return
+    const novo = checklist.includes(chave) ? checklist.filter((item) => item !== chave) : [...checklist, chave]
+    setChecklist(novo)
+    salvarChecklist(osAtual.op_pk, novo)
+  }
 
   useEffect(() => {
     if (!Number.isFinite(pk)) return
@@ -349,6 +401,12 @@ export default function DetalheOrdemServico() {
         acaoConfirmando.desfazer ? `Etapa "${etapa.rotulo}" desfeita.` : `Etapa "${etapa.rotulo}" confirmada.`,
         'sucesso',
       )
+      // Finalizada: o checklist já foi para a descrição — não fica marcado
+      // no aparelho (nem reaparece se a OS for reaberta).
+      if (etapa.chave === 'finalizar' && !acaoConfirmando.desfazer) {
+        salvarChecklist(osAtual.op_pk, [])
+        setChecklist([])
+      }
       setAcaoConfirmando(null)
       setObservacaoEtapa('')
       recarregarEventos()
@@ -366,17 +424,36 @@ export default function DetalheOrdemServico() {
   }
 
   async function aoSelecionarArquivo(evento: ChangeEvent<HTMLInputElement>) {
-    const arquivo = evento.target.files?.[0]
+    const original = evento.target.files?.[0]
     evento.target.value = ''
-    if (!arquivo) return
+    if (!original) return
     const id = Date.now()
-    const previa = arquivo.type.startsWith('image/') && !arquivo.type.startsWith('image/svg') ? URL.createObjectURL(arquivo) : null
+    const previa =
+      original.type.startsWith('image/') && !original.type.startsWith('image/svg') ? URL.createObjectURL(original) : null
     if (previa) urlsPreviaRef.current.push(previa)
-    const situacao = (nova: AnexoEnviado['situacao']) =>
-      setAnexosEnviados((atuais) => atuais.map((a) => (a.id === id ? { ...a, situacao: nova } : a)))
-    setAnexosEnviados((atuais) => [{ id, nome: arquivo.name, previa, situacao: 'enviando' }, ...atuais])
+    const situacao = (nova: AnexoEnviado['situacao'], filaId?: number) =>
+      setAnexosEnviados((atuais) => atuais.map((a) => (a.id === id ? { ...a, situacao: nova, filaId } : a)))
+    setAnexosEnviados((atuais) => [{ id, nome: original.name, previa, situacao: 'enviando' }, ...atuais])
     setEnviandoAnexo(true)
+    // Foto grande é reduzida no aparelho antes de subir (utils/imagem.ts).
+    const arquivo = await comprimirImagem(original)
+
+    // Sem sinal: guarda no aparelho e envia quando a internet voltar.
+    async function paraFila() {
+      try {
+        situacao('fila', await enfileirarAnexo(pk, arquivo))
+        toast('Sem sinal: o anexo ficou na fila e é enviado quando a internet voltar.')
+      } catch {
+        situacao('erro')
+        toast('Sem sinal e não foi possível guardar o anexo. Tente de novo.')
+      }
+    }
+
     try {
+      if (!navigator.onLine) {
+        await paraFila()
+        return
+      }
       // O anexo vai para o chamado (ticket) — é o mesmo endpoint/local onde
       // ele aparece na tela de chat do Suporte, mesmo sendo anexado aqui
       // na tela da OS.
@@ -384,6 +461,10 @@ export default function DetalheOrdemServico() {
       situacao('enviado')
       toast('Anexo enviado.', 'sucesso')
     } catch (excecao) {
+      if (ehFalhaDeRede(excecao)) {
+        await paraFila()
+        return
+      }
       situacao('erro')
       toast(excecao instanceof ApiError ? excecao.message : 'Não foi possível enviar o anexo.')
     } finally {
@@ -411,7 +492,6 @@ export default function DetalheOrdemServico() {
   return (
     <PullToRefresh aoAtualizar={carregar}>
       <div className="detalhe-ordem-tela tela-entrada">
-        <VoltarInicio to="/suporte" label="OS" />
 
         {carregando && (
           <div className="detalhe-ordem-card">
@@ -488,256 +568,333 @@ export default function DetalheOrdemServico() {
               </Link>
             </div>
 
-            <div className="detalhe-ordem-card">
-              <div className="detalhe-ordem-topo">
-                <h2>Endereço</h2>
-                {endereco?.address_pk && (
-                  <button
-                    type="button"
-                    className="detalhe-ordem-btn-icone"
-                    onClick={() => setEnderecoEditando(endereco)}
-                    aria-label="Editar endereço"
-                  >
-                    <MdEdit size={16} />
-                  </button>
-                )}
-              </div>
-              <p className="detalhe-ordem-linha">{enderecoResumo(endereco ?? osAtual)}</p>
-              {(endereco?.address_province ?? osAtual.address_province) || (endereco?.address_state ?? osAtual.address_state) ? (
-                <p className="detalhe-ordem-linha">
-                  {[endereco?.address_province ?? osAtual.address_province, endereco?.address_state ?? osAtual.address_state]
-                    .filter(Boolean)
-                    .join(' - ')}
-                </p>
-              ) : null}
-              {(endereco?.address_zipcode ?? osAtual.address_zipcode) && (
-                <p className="detalhe-ordem-linha">CEP: {formatarCep(endereco?.address_zipcode ?? osAtual.address_zipcode)}</p>
-              )}
-              {endereco?.address_latitude && endereco?.address_longitude && (
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${endereco.address_latitude},${endereco.address_longitude}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="detalhe-ordem-chip"
-                >
-                  <MdLocationOn size={14} /> Ver no Google Maps
-                </a>
-              )}
-              {rota && (
-                <a href={rota} target="_blank" rel="noreferrer" className="detalhe-ordem-chip">
-                  <MdDirections size={14} /> Rota até o cliente
-                </a>
-              )}
-            </div>
+            <Abas abas={ABAS} ativa={aba} onEscolher={setAba} cor={CORES.suporte} rotulo="Partes da OS" />
 
-            {(ticket?.ticket_desc || osAtual.op_obs) && (
-              <div className="detalhe-ordem-card">
-                {ticket?.ticket_desc && (
-                  <>
-                    <h2>Descrição do problema</h2>
-                    <p className="detalhe-ordem-descricao">{ticket.ticket_desc}</p>
-                  </>
-                )}
-                {osAtual.op_obs && (
-                  <>
-                    <h2>Observação</h2>
-                    <p className="detalhe-ordem-descricao">{osAtual.op_obs}</p>
-                  </>
-                )}
-              </div>
-            )}
-
-            <div className="detalhe-ordem-card">
-              <h2>Conexão</h2>
-              <div className="detalhe-ordem-linha-campo">
-                <span>Usuário</span>
-                <div className="detalhe-ordem-campo-valor">
-                  <strong>{cpe?.username ?? '—'}</strong>
-                  <button onClick={() => copiar(cpe?.username, 'Usuário')} aria-label="Copiar usuário">
-                    <MdContentCopy size={16} />
-                  </button>
-                </div>
-              </div>
-              <div className="detalhe-ordem-linha-campo">
-                <span>Senha</span>
-                <div className="detalhe-ordem-campo-valor">
-                  <strong>{mostrarSenha ? cpe?.password ?? '—' : '••••••••'}</strong>
-                  <button onClick={() => setMostrarSenha((v) => !v)} aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}>
-                    {mostrarSenha ? <MdVisibilityOff size={16} /> : <MdVisibility size={16} />}
-                  </button>
-                  <button onClick={() => copiar(cpe?.password, 'Senha')} aria-label="Copiar senha">
-                    <MdContentCopy size={16} />
-                  </button>
-                </div>
-              </div>
-              <div className="detalhe-ordem-linha-campo">
-                <span>IP</span>
-                <strong>{cpe?.v4_ip ?? cpe?.v4_ip_last ?? '—'}</strong>
-              </div>
-              <div className="detalhe-ordem-linha-campo">
-                <span>MAC</span>
-                <strong>{cpe?.mac ?? cpe?.mac_last ?? '—'}</strong>
-              </div>
-              <div className="detalhe-ordem-linha-campo">
-                <span>CTO</span>
-                <strong>{cpe?.dp_name ?? '—'}</strong>
-              </div>
-              <div className="detalhe-ordem-linha-campo">
-                <span>Porta da CTO</span>
-                <strong>{cpe?.dp_port ?? '—'}</strong>
-              </div>
-              {(onuOs || carregandoOnu) && (
-                <div className="detalhe-ordem-linha-campo">
-                  <span>Sinal ONU</span>
-                  {carregandoOnu ? (
-                    <strong>Consultando…</strong>
-                  ) : (
-                    <span className={`detalhe-ordem-sinal ${nivelSinalOnu(onuOs?.omddm_rx_power)}`}>
-                      {onuOs?.omddm_rx_power != null
-                        ? `${onuOs.omddm_rx_power} dBm`
-                        : TEXTO_SINAL_ONU[nivelSinalOnu(onuOs?.omddm_rx_power)]}
-                    </span>
-                  )}
-                </div>
-              )}
-              {onuOs && (
-                <p className="detalhe-ordem-lido">
-                  <LidoHa momento={onuLidaEm} />
-                </p>
-              )}
-              {cpe?.pk && (
-                <Link to={`/conexao?cpe_pk=${cpe.pk}`} className="detalhe-ordem-chip" viewTransition>
-                  <MdWifi size={14} /> Ver conexão completa
-                </Link>
-              )}
-            </div>
-
-            <div className="detalhe-ordem-card">
-              <h2>Anexo</h2>
-              <input ref={inputArquivoRef} type="file" style={{ display: 'none' }} onChange={aoSelecionarArquivo} />
-              <button
-                className="botao botao-secundario botao-bloco"
-                style={{ '--botao-cor': CORES.suporte } as CSSProperties}
-                disabled={enviandoAnexo}
-                onClick={() => inputArquivoRef.current?.click()}
-              >
-                <MdAttachFile size={16} /> {enviandoAnexo ? 'Enviando…' : 'Anexar arquivo ao chamado'}
-              </button>
-              {anexosEnviados.length > 0 && (
-                <ul className="detalhe-ordem-anexos">
-                  {anexosEnviados.map((anexo) => (
-                    <li key={anexo.id} className={`detalhe-ordem-anexo detalhe-ordem-anexo-${anexo.situacao}`}>
-                      {anexo.previa ? (
-                        <img src={anexo.previa} alt={anexo.nome} className="detalhe-ordem-anexo-previa" />
-                      ) : (
-                        <span className="detalhe-ordem-anexo-icone">
-                          <MdAttachFile size={22} />
-                        </span>
-                      )}
-                      <span className="detalhe-ordem-anexo-nome">{anexo.nome}</span>
-                      <span className="detalhe-ordem-anexo-situacao">
-                        {anexo.situacao === 'enviando' ? 'Enviando…' : anexo.situacao === 'enviado' ? 'Enviado' : 'Falhou'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <SecaoRecolhivel className="detalhe-ordem-card" titulo="Cliente" resumo={osAtual.client_complete_name ?? undefined}>
-              <div className="detalhe-ordem-linha-campo">
-                <span>Nome</span>
-                {osAtual.client_pk ? (
-                  <Link to={`/clientes/${osAtual.client_pk}`} className="detalhe-ordem-link" viewTransition>
-                    <MdPeopleAlt size={14} /> {osAtual.client_complete_name ?? '—'}
-                  </Link>
-                ) : (
-                  <strong>{osAtual.client_complete_name ?? '—'}</strong>
-                )}
-              </div>
-              {telefone && (
-                <>
-                  <div className="detalhe-ordem-linha-campo">
-                    <span>Contato</span>
-                    <strong>{separarTelefones(telefone).map(formatarTelefone).join(', ') || telefone}</strong>
+            {aba === 'resumo' && (
+              <>
+                {(ticket?.ticket_desc || osAtual.op_obs) && (
+                  <div className="detalhe-ordem-card">
+                    {ticket?.ticket_desc && (
+                      <>
+                        <h2>Descrição do problema</h2>
+                        <p className="detalhe-ordem-descricao">{ticket.ticket_desc}</p>
+                      </>
+                    )}
+                    {osAtual.op_obs && (
+                      <>
+                        <h2>Observação</h2>
+                        <p className="detalhe-ordem-descricao">{osAtual.op_obs}</p>
+                      </>
+                    )}
                   </div>
-                  {/* Ligar/WhatsApp de cada número ficam no cabeçalho da OS. */}
-                </>
-              )}
-            </SecaoRecolhivel>
+                )}
 
-            <SecaoRecolhivel className="detalhe-ordem-card" titulo="Contrato" resumo={(contrato?.contract_number ?? osAtual.contract_number)?.toString()}>
-              <div className="detalhe-ordem-linha-campo">
-                <span>Número</span>
-                <strong>{contrato?.contract_number ?? osAtual.contract_number ?? '—'}</strong>
-              </div>
-              <div className="detalhe-ordem-linha-campo">
-                <span>Vencimento</span>
-                <strong>{contrato?.contract_pay_day ? `Dia ${contrato.contract_pay_day}` : '—'}</strong>
-              </div>
-              <div className="detalhe-ordem-linha-campo">
-                <span>Status</span>
-                <strong>{contrato?.contract_status != null ? formatarStatusContrato(contrato.contract_status) : '—'}</strong>
-              </div>
-            </SecaoRecolhivel>
-
-            <SecaoRecolhivel className="detalhe-ordem-card" titulo="Histórico das etapas" resumo={`${concluidas.filter(Boolean).length + 1} de ${ETAPAS.length + 1} etapas`}>
-              <div className="detalhe-ordem-etapa-item">
-                <div className="detalhe-ordem-etapa-item-texto">
-                  <strong>Agendamento</strong>
-                  <span>{osAtual.op_date_sched ? formatarDataHora(osAtual.op_date_sched) : 'Feito pelo escritório'}</span>
-                </div>
-                <span className="detalhe-ordem-etapa-feito">Pronto</span>
-              </div>
-              {(() => {
-                if (!osAtual.op_pk) return null
-                const osRaizPk = osAtual.op_pk
-                return ETAPAS.map((etapa, indice) => {
-                  const evento = ultimoEvento(eventos, osRaizPk, etapa.opType)
-                  const concluida = concluidas[indice]
-                  const situacao = situacaoEtapa(concluidas, indice)
-                  // Texto explica por que o botão está bloqueado, em vez de
-                  // só desabilitar sem dizer nada: a sequência é obrigatória
-                  // nos dois sentidos (marcar em ordem, desfazer em ordem
-                  // reversa).
-                  let subtitulo: string
-                  if (concluida && evento) {
-                    subtitulo = formatarDataHora(evento[etapa.campoData])
-                    if (situacao === 'bloqueada') subtitulo += ` · desfaça "${ETAPAS[indice + 1]?.rotulo}" antes`
-                  } else if (situacao === 'bloqueada') {
-                    subtitulo = `Aguardando "${ETAPAS[indice - 1]?.rotulo}"`
-                  } else {
-                    subtitulo = 'Ainda não'
-                  }
-                  return (
-                    <div key={etapa.chave} className="detalhe-ordem-etapa-item">
-                      <div className="detalhe-ordem-etapa-item-texto">
-                        <strong>{etapa.rotulo}</strong>
-                        <span>{subtitulo}</span>
-                      </div>
-                      {/* Confirmar fica na barra fixa do rodapé; aqui só desfazer. */}
-                      {concluida && (
-                        <button
-                          type="button"
-                          className="detalhe-ordem-etapa-btn-desfazer"
-                          disabled={situacao === 'bloqueada'}
-                          onClick={() => setAcaoConfirmando({ etapa: etapa.chave, desfazer: true })}
+                <div className="detalhe-ordem-card">
+                  <div className="detalhe-ordem-topo">
+                    <h2>Endereço</h2>
+                    {endereco?.address_pk && (
+                      <button
+                        type="button"
+                        className="detalhe-ordem-btn-icone"
+                        onClick={() => setEnderecoEditando(endereco)}
+                        aria-label="Editar endereço"
+                      >
+                        <MdEdit size={16} />
+                      </button>
+                    )}
+                  </div>
+                  <p className="detalhe-ordem-linha">{enderecoResumo(endereco ?? osAtual)}</p>
+                  {(endereco?.address_province ?? osAtual.address_province) || (endereco?.address_state ?? osAtual.address_state) ? (
+                    <p className="detalhe-ordem-linha">
+                      {[endereco?.address_province ?? osAtual.address_province, endereco?.address_state ?? osAtual.address_state]
+                        .filter(Boolean)
+                        .join(' - ')}
+                    </p>
+                  ) : null}
+                  {(endereco?.address_zipcode ?? osAtual.address_zipcode) && (
+                    <p className="detalhe-ordem-linha">CEP: {formatarCep(endereco?.address_zipcode ?? osAtual.address_zipcode)}</p>
+                  )}
+                  {((endereco?.address_latitude && endereco?.address_longitude) || rota) && (
+                    <div className="detalhe-ordem-links">
+                      {endereco?.address_latitude && endereco?.address_longitude && (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${endereco.address_latitude},${endereco.address_longitude}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="detalhe-ordem-chip"
                         >
-                          <etapa.Icone size={14} /> Desfazer
-                        </button>
+                          <MdLocationOn size={14} /> Ver no Google Maps
+                        </a>
+                      )}
+                      {rota && (
+                        <a href={rota} target="_blank" rel="noreferrer" className="detalhe-ordem-chip">
+                          <MdDirections size={14} /> Rota até o cliente
+                        </a>
                       )}
                     </div>
-                  )
-                })
-              })()}
-            </SecaoRecolhivel>
+                  )}
+                </div>
+              </>
+            )}
+
+            {aba === 'conexao' && (
+              <>
+                <div className="detalhe-ordem-card">
+                  <h2>Conexão</h2>
+                  <div className="detalhe-ordem-linha-campo">
+                    <span>Usuário</span>
+                    <div className="detalhe-ordem-campo-valor">
+                      <strong>{cpe?.username ?? '—'}</strong>
+                      <button onClick={() => copiar(cpe?.username, 'Usuário')} aria-label="Copiar usuário">
+                        <MdContentCopy size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="detalhe-ordem-linha-campo">
+                    <span>Senha</span>
+                    <div className="detalhe-ordem-campo-valor">
+                      <strong>{mostrarSenha ? cpe?.password ?? '—' : '••••••••'}</strong>
+                      <button onClick={() => setMostrarSenha((v) => !v)} aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}>
+                        {mostrarSenha ? <MdVisibilityOff size={16} /> : <MdVisibility size={16} />}
+                      </button>
+                      <button onClick={() => copiar(cpe?.password, 'Senha')} aria-label="Copiar senha">
+                        <MdContentCopy size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="detalhe-ordem-linha-campo">
+                    <span>IP</span>
+                    <strong>{cpe?.v4_ip ?? cpe?.v4_ip_last ?? '—'}</strong>
+                  </div>
+                  <div className="detalhe-ordem-linha-campo">
+                    <span>MAC</span>
+                    <strong>{cpe?.mac ?? cpe?.mac_last ?? '—'}</strong>
+                  </div>
+                  <div className="detalhe-ordem-linha-campo">
+                    <span>CTO</span>
+                    <strong>{cpe?.dp_name ?? '—'}</strong>
+                  </div>
+                  <div className="detalhe-ordem-linha-campo">
+                    <span>Porta da CTO</span>
+                    <strong>{cpe?.dp_port ?? '—'}</strong>
+                  </div>
+                  {(onuOs || carregandoOnu) && (
+                    <div className="detalhe-ordem-linha-campo">
+                      <span>Sinal ONU</span>
+                      {carregandoOnu ? (
+                        <strong>Consultando…</strong>
+                      ) : (
+                        <span className={`detalhe-ordem-sinal ${nivelSinalOnu(onuOs?.omddm_rx_power)}`}>
+                          {onuOs?.omddm_rx_power != null
+                            ? `${onuOs.omddm_rx_power} dBm`
+                            : TEXTO_SINAL_ONU[nivelSinalOnu(onuOs?.omddm_rx_power)]}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {onuOs && (
+                    <p className="detalhe-ordem-lido">
+                      <LidoHa momento={onuLidaEm} />
+                    </p>
+                  )}
+                  {cpe?.pk && (
+                    <Link to={`/conexao?cpe_pk=${cpe.pk}`} className="detalhe-ordem-chip" viewTransition>
+                      <MdWifi size={14} /> Ver conexão completa
+                    </Link>
+                  )}
+                </div>
+              </>
+            )}
+
+            {aba === 'checklist' && (
+              <>
+                {!encerrada && osAtual.op_pk && (
+                  <div className="detalhe-ordem-card">
+                    <div className="detalhe-ordem-topo">
+                      <h2>Checklist de saída</h2>
+                      <span className="detalhe-ordem-checklist-contagem">
+                        {checklist.length} de {ITENS_CHECKLIST.length}
+                      </span>
+                    </div>
+                    <div className="detalhe-ordem-checklist">
+                      {ITENS_CHECKLIST.map((item) => (
+                        <label key={item.chave}>
+                          <input
+                            type="checkbox"
+                            checked={checklist.includes(item.chave)}
+                            onChange={() => alternarItemChecklist(item.chave)}
+                          />
+                          <span>
+                            {item.rotulo}
+                            {item.chave === 'sinal' && onuOs?.omddm_rx_power != null && (
+                              <small> · agora {onuOs.omddm_rx_power.toLocaleString('pt-BR')} dBm</small>
+                            )}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="detalhe-ordem-lido">Ao finalizar, o que estiver marcado já entra na descrição.</p>
+                  </div>
+                )}
+
+                <div className="detalhe-ordem-card">
+                  <h2>Anexo</h2>
+                  <input ref={inputArquivoRef} type="file" style={{ display: 'none' }} onChange={aoSelecionarArquivo} />
+                  <input
+                    ref={inputCameraRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    style={{ display: 'none' }}
+                    onChange={aoSelecionarArquivo}
+                  />
+                  <div className="detalhe-ordem-anexo-botoes">
+                    <button
+                      className="botao botao-primario"
+                      style={{ '--botao-cor': CORES.suporte } as CSSProperties}
+                      disabled={enviandoAnexo}
+                      onClick={() => inputCameraRef.current?.click()}
+                    >
+                      <MdPhotoCamera size={18} /> Tirar foto
+                    </button>
+                    <button aria-busy={enviandoAnexo}
+                      className="botao botao-secundario"
+                      style={{ '--botao-cor': CORES.suporte } as CSSProperties}
+                      disabled={enviandoAnexo}
+                      onClick={() => inputArquivoRef.current?.click()}
+                    >
+                      <MdAttachFile size={18} /> {enviandoAnexo ? 'Enviando…' : 'Arquivo'}
+                    </button>
+                  </div>
+                  {anexosEnviados.length > 0 && (
+                    <ul className="detalhe-ordem-anexos">
+                      {anexosEnviados.map((anexo) => (
+                        <li key={anexo.id} className={`detalhe-ordem-anexo detalhe-ordem-anexo-${anexo.situacao}`}>
+                          {anexo.previa ? (
+                            <img src={anexo.previa} alt={anexo.nome} className="detalhe-ordem-anexo-previa" />
+                          ) : (
+                            <span className="detalhe-ordem-anexo-icone">
+                              <MdAttachFile size={22} />
+                            </span>
+                          )}
+                          <span className="detalhe-ordem-anexo-nome">{anexo.nome}</span>
+                          <span className="detalhe-ordem-anexo-situacao">{TEXTO_SITUACAO_ANEXO[anexo.situacao]}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </>
+            )}
+
+            {aba === 'historico' && (
+              <>
+                <div className="detalhe-ordem-card">
+                  <h2>Cliente</h2>
+                  <div className="detalhe-ordem-linha-campo">
+                    <span>Nome</span>
+                    {osAtual.client_pk ? (
+                      <Link to={`/clientes/${osAtual.client_pk}`} className="detalhe-ordem-link" viewTransition>
+                        <MdPeopleAlt size={14} /> {osAtual.client_complete_name ?? '—'}
+                      </Link>
+                    ) : (
+                      <strong>{osAtual.client_complete_name ?? '—'}</strong>
+                    )}
+                  </div>
+                  {telefone && (
+                    <>
+                      <div className="detalhe-ordem-linha-campo">
+                        <span>Contato</span>
+                        <strong>{separarTelefones(telefone).map(formatarTelefone).join(', ') || telefone}</strong>
+                      </div>
+                      {/* Ligar/WhatsApp de cada número ficam no cabeçalho da OS. */}
+                    </>
+                  )}
+                </div>
+
+                <div className="detalhe-ordem-card">
+                  <h2>Contrato</h2>
+                  <div className="detalhe-ordem-linha-campo">
+                    <span>Número</span>
+                    <strong>{contrato?.contract_number ?? osAtual.contract_number ?? '—'}</strong>
+                  </div>
+                  <div className="detalhe-ordem-linha-campo">
+                    <span>Vencimento</span>
+                    <strong>{contrato?.contract_pay_day ? `Dia ${contrato.contract_pay_day}` : '—'}</strong>
+                  </div>
+                  <div className="detalhe-ordem-linha-campo">
+                    <span>Status</span>
+                    <strong>{contrato?.contract_status != null ? formatarStatusContrato(contrato.contract_status) : '—'}</strong>
+                  </div>
+                </div>
+
+                <div className="detalhe-ordem-card">
+                  <h2>Histórico das etapas</h2>
+                  <div className="detalhe-ordem-etapa-item">
+                    <div className="detalhe-ordem-etapa-item-texto">
+                      <strong>Agendamento</strong>
+                      <span>{osAtual.op_date_sched ? formatarDataHora(osAtual.op_date_sched) : 'Feito pelo escritório'}</span>
+                    </div>
+                    <span className="detalhe-ordem-etapa-feito">Pronto</span>
+                  </div>
+                  {(() => {
+                    if (!osAtual.op_pk) return null
+                    const osRaizPk = osAtual.op_pk
+                    return ETAPAS.map((etapa, indice) => {
+                      const evento = ultimoEvento(eventos, osRaizPk, etapa.opType)
+                      const concluida = concluidas[indice]
+                      const situacao = situacaoEtapa(concluidas, indice)
+                      // Texto explica por que o botão está bloqueado, em vez de
+                      // só desabilitar sem dizer nada: a sequência é obrigatória
+                      // nos dois sentidos (marcar em ordem, desfazer em ordem
+                      // reversa).
+                      let subtitulo: string
+                      if (concluida && evento) {
+                        subtitulo = formatarDataHora(evento[etapa.campoData])
+                        if (situacao === 'bloqueada') subtitulo += ` · desfaça "${ETAPAS[indice + 1]?.rotulo}" antes`
+                      } else if (situacao === 'bloqueada') {
+                        subtitulo = `Aguardando "${ETAPAS[indice - 1]?.rotulo}"`
+                      } else {
+                        subtitulo = 'Ainda não'
+                      }
+                      return (
+                        <div key={etapa.chave} className="detalhe-ordem-etapa-item">
+                          <div className="detalhe-ordem-etapa-item-texto">
+                            <strong>{etapa.rotulo}</strong>
+                            <span>{subtitulo}</span>
+                          </div>
+                          {/* Confirmar fica na barra fixa do rodapé; aqui só desfazer. */}
+                          {concluida && (
+                            <button
+                              type="button"
+                              className="detalhe-ordem-etapa-btn-desfazer"
+                              disabled={situacao === 'bloqueada'}
+                              onClick={() => setAcaoConfirmando({ etapa: etapa.chave, desfazer: true })}
+                            >
+                              <etapa.Icone size={14} /> Desfazer
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
+              </>
+            )}
+
             {proximaEtapa && (
               <div className="detalhe-ordem-barra-acao">
                 <button
                   type="button"
                   className="botao botao-primario botao-bloco detalhe-ordem-barra-botao"
                   style={{ '--botao-cor': CORES.suporte } as CSSProperties}
-                  onClick={() => setAcaoConfirmando({ etapa: proximaEtapa.chave, desfazer: false })}
+                  onClick={() => {
+                    // Finalizar: o checklist marcado já entra na descrição (editável).
+                    if (proximaEtapa.chave === 'finalizar' && !observacaoEtapa.trim()) {
+                      setObservacaoEtapa(textoChecklist(checklist, onuOs?.omddm_rx_power))
+                    }
+                    setAcaoConfirmando({ etapa: proximaEtapa.chave, desfazer: false })
+                  }}
                 >
                   <proximaEtapa.Icone size={20} /> {proximaEtapa.rotuloMarcar}
                 </button>
@@ -783,7 +940,7 @@ export default function DetalheOrdemServico() {
                 >
                   Cancelar
                 </button>
-                <button
+                <button aria-busy={executandoEtapa}
                   className="botao botao-primario"
                   style={{ '--botao-cor': CORES.suporte } as CSSProperties}
                   disabled={executandoEtapa}
@@ -811,4 +968,14 @@ export default function DetalheOrdemServico() {
       </div>
     </PullToRefresh>
   )
+}
+
+/**
+ * Uma instância por OS: trocar de OS sem sair da tela (aviso de OS,
+ * link, busca) recomeça do zero — sem anexos, checklist, textos ou janelas
+ * da anterior presos na tela.
+ */
+export default function DetalheOrdemServico() {
+  const { ticketPk } = useParams<{ ticketPk: string }>()
+  return <DetalheOrdemServicoConteudo key={ticketPk} />
 }

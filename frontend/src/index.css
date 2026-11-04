@@ -1,34 +1,67 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+/* Inter variável (pesos 100–900), só o subconjunto latino (cobre o
+   português), servida pelo próprio app e pré-cacheada pelo service worker:
+   abre sem esperar o Google Fonts. Licença: assets/fonts/Inter-LICENSE.txt. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./assets/fonts/inter-latin.woff2') format('woff2');
+}
+
+/* IBM Plex Mono (500 e 600, subconjunto latino) para serial, MAC, PPPoE e
+   senha: separa 0/O e l/1/I. Também local e pré-cacheada.
+   Licença: assets/fonts/IBMPlexMono-LICENSE.txt. */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./assets/fonts/plex-mono-500-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600 800;
+  font-display: swap;
+  src: url('./assets/fonts/plex-mono-600-latin.woff2') format('woff2');
+}
 
 :root {
-  font-family: 'Plus Jakarta Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  /* Algarismos de largura fixa: datas, IPs e consumo alinham em coluna e
+     não "pulam" quando o valor muda. */
+  font-variant-numeric: tabular-nums;
   color-scheme: light dark;
+  --fonte-mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
 
-  /* Marca — paleta azul/operacional, para diferenciar visualmente do
-     portal do cliente (laranja/vermelho). */
+  /* Marca: azul da empresa para ação e para a faixa do login/início
+     (texto branco por cima com contraste de leitura). */
   --cor-primaria: #0d3bd8;
   --cor-primaria-escura: #082a9e;
   --cor-primaria-clara: #4d72f0;
   --cor-primaria-gradiente-fim: #061d6b;
+  --cor-marca-escura: #082a9e;
 
   /* Superfícies */
-  --cor-fundo: #f5f5f5;
+  --cor-fundo: #f7f8fa;
   --cor-superficie: #ffffff;
-  --cor-borda: #e0e0e0;
-  --cor-borda-suave: #eeeeee;
-  --cor-borda-clara: #f0f0f0;
+  --cor-borda: #d5dae0;
+  --cor-borda-suave: #e9edf1;
+  --cor-borda-clara: #eef1f4;
   /* Branco fixo — para texto/ícone sobre um fundo de cor sólida (botão
      gradiente, badge, cabeçalho). NUNCA redefinido no bloco escuro. */
   --cor-branco-fixo: #ffffff;
 
   /* Texto */
-  --cor-texto: #333333;
-  --cor-texto-secundario: #666666;
+  --cor-texto: #243642;
+  --cor-texto-secundario: #586476;
   /* Cinzas de apoio escurecidos para passar no contraste mínimo (WCAG AA,
      4.5:1) sobre o branco e o fundo — #999 ficava ilegível sob sol. */
-  --cor-texto-terciario: #6e6e6e;
-  --cor-texto-fraco: #757575;
-  --cor-texto-desabilitado: #757575;
+  --cor-texto-terciario: #5f6b7c;
+  --cor-texto-fraco: #64707f;
+  --cor-texto-desabilitado: #737f8e;
 
   /* Status/feedback */
   /* Sucesso/erro/conexão/ONU escurecidos no claro para passar no contraste
@@ -41,20 +74,22 @@
   --cor-erro: #c62828;
 
   /* Acentos por área do app do técnico */
-  --cor-suporte: #0f8a45;
+  --cor-suporte: #0b7a3b;
   --cor-cliente: #7a4bc4;
   --cor-conexao: #0e7f8c;
   --cor-onu: #a85a17;
   --cor-endereco: #4a5c7a;
   --cor-ferramentas: #5c6bc0;
-  --cor-financeiro: #b8860b;
-  --cor-offline: #d9463c;
+  --cor-financeiro: #8a6408;
+  --cor-offline: #b42318;
   /* Menu "OLTs" (Coletor de OLTs, opcional — ver hooks/useColetorOlt.ts). */
   --cor-olts: #7b5ea7;
 
   /* Sombra dos cards — token à parte porque no escuro uma sombra preta
      não aparece contra um fundo já escuro (ver bloco dark abaixo). */
-  --sombra-card: 0 4px 16px rgba(0, 0, 0, 0.06);
+  /* Cartão "chapado" com borda fina (sombra some no sol e pesa no tema
+     escuro): o mesmo visual do Início, menu e filtros em todas as telas. */
+  --sombra-card: 0 0 0 1px var(--cor-borda);
 
   /* Largura do conteúdo principal — um token só, em vez do mesmo
      "max-width" repetido em cada página (100%, sem teto fixo). */
@@ -74,19 +109,21 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --cor-fundo: #121316;
-  --cor-superficie: #1e2025;
-  --cor-borda: #34373e;
-  --cor-borda-suave: #2b2e34;
-  --cor-borda-clara: #292c32;
+  --cor-fundo: #141a1f;
+  --cor-superficie: #1a2127;
+  --cor-borda: #2a343c;
+  --cor-borda-suave: #222b32;
+  --cor-borda-clara: #20282e;
 
-  --cor-texto: #f0f0f0;
-  --cor-texto-secundario: #b8b8bc;
-  --cor-texto-terciario: #9a9aa0;
-  --cor-texto-fraco: #86868c;
-  --cor-texto-desabilitado: #6f6f75;
+  --cor-texto: #e2e3e5;
+  --cor-texto-secundario: #9aa6b4;
+  --cor-texto-terciario: #8a96a4;
+  --cor-texto-fraco: #7f8b99;
+  --cor-texto-desabilitado: #6e7a88;
+  /* Faixa da marca mais fechada no escuro. */
+  --cor-marca-escura: #061d6b;
 
-  --sombra-card: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --sombra-card: 0 0 0 1px var(--cor-borda);
 
   --cor-sucesso: #4caf50;
   --cor-erro: #f44336;
@@ -142,6 +179,12 @@
   font-weight: 500;
 }
 
+/* Texto grande (Configurações → Tamanho do texto): amplia o app inteiro
+   por igual — os tamanhos estão em px, então rem não alcançaria tudo. */
+:root[data-texto='grande'] body {
+  zoom: 1.125;
+}
+
 :root[data-sol='1'] strong,
 :root[data-sol='1'] b,
 :root[data-sol='1'] h1,
@@ -155,6 +198,12 @@
 
 /* Campos e botões não herdam a fonte do app por padrão (caíam em Arial/
    Roboto): herdam aqui, de uma vez para o app todo. */
+/* Texto de ajuda (placeholder) que não cabe termina em "…" em vez de
+   ser cortado no meio. */
+input {
+  text-overflow: ellipsis;
+}
+
 button,
 input,
 select,
@@ -219,6 +268,7 @@ textarea,
 /* Reserva espaço para o conteúdo não ficar escondido atrás da barra de
    navegação fixa no rodapé, quando ela está presente na página. */
 body:has(.bottom-nav) {
+  --altura-toast-base: var(--altura-nav);
   padding-bottom: var(--altura-nav);
 }
 
@@ -280,7 +330,7 @@ a:active,
   border-radius: 12px;
   border: 1.5px solid transparent;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -297,13 +347,79 @@ a:active,
 .botao-pequeno {
   height: 48px;
   padding: 0 14px;
-  font-size: 12px;
+  font-size: 14px;
+}
+
+/* Botão carregando (aria-busy="true"): rodinha no lugar do ícone e sem
+   novo toque enquanto a ação não termina. */
+.botao[aria-busy='true'] {
+  pointer-events: none;
+}
+
+.botao[aria-busy='true'] > svg {
+  display: none;
+}
+
+.botao[aria-busy='true']::before {
+  content: '';
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2.5px solid currentColor;
+  border-right-color: transparent;
+  animation: botao-girar 0.7s linear infinite;
+}
+
+@keyframes botao-girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Campo padrão (input/select) do app: 48px de toque, letra 16px (o iPhone
+   não dá zoom ao focar), mesma borda e foco em todas as telas. */
+.campo {
+  width: 100%;
+  min-width: 0;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--cor-borda);
+  background-color: var(--cor-superficie);
+  color: var(--cor-texto);
+  font-family: inherit;
+  font-size: 16px;
+}
+
+.campo:focus {
+  outline: none;
+  border-color: var(--cor-primaria);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cor-primaria) 18%, transparent);
+}
+
+/* Select com a seta do app no lugar da do navegador. */
+select.campo {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23737f8e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .botao[aria-busy='true']::before {
+    animation-duration: 2s;
+  }
 }
 
 .botao-primario {
   border-color: transparent;
   color: var(--cor-branco-fixo);
-  background: linear-gradient(135deg, var(--botao-cor, var(--cor-primaria)), var(--cor-primaria-escura));
+  /* Cor sólida (identidade nova): degradê some no sol e pesa no tema escuro. */
+  background: var(--botao-cor, var(--cor-primaria-escura));
 }
 
 /* Mesma variável --botao-cor do primário (ver acima) — quando a tela não
@@ -405,42 +521,76 @@ a:active,
   animation: none;
 }
 
-/* Voltar (botão do app ou do celular) entra pela esquerda — ver
-   utils/sentidoTransicao.ts, que marca data-sentido no <html>. */
-@media (prefers-reduced-motion: no-preference) {
-  html[data-sentido='voltar']::view-transition-old(root) {
-    animation-name: tela-sai-direita;
-  }
-
-  html[data-sentido='voltar']::view-transition-new(root) {
-    animation-name: tela-entra-esquerda;
-  }
-}
-
-@keyframes tela-sai-direita {
-  to {
-    opacity: 0;
-    transform: translateX(16px);
-  }
-}
-
-@keyframes tela-entra-esquerda {
-  from {
-    opacity: 0;
-    transform: translateX(-16px);
-  }
-}
-
+/* Como no Android/iOS: a tela nova entra inteira pela direita por cima da
+   anterior, que recua um pouco e escurece. (O voltar é só o do celular,
+   sem animação própria.) */
 @keyframes tela-sai {
   to {
-    opacity: 0;
-    transform: translateX(-16px);
+    transform: translateX(-25%);
+    filter: brightness(0.85);
   }
 }
 
 @keyframes tela-entra {
   from {
-    opacity: 0;
-    transform: translateX(16px);
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.25s;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+/* --- Toque como app nativo ------------------------------------------------ */
+html {
+  /* Sem o realce do navegador ao tocar e sem zoom (pinça ou toque duplo)
+     na tela, como num app nativo — o iPhone ignora user-scalable=no do
+     viewport, por isso o touch-action também. O mapa da CTO (Leaflet) tem
+     touch-action próprio e faz a pinça por conta dele, então segue com
+     zoom. */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: pan-x pan-y;
+}
+
+/* Botões, abas, rótulos e títulos não selecionam texto ao segurar o dedo
+   (campos de texto e valores para copiar continuam selecionáveis). */
+button,
+[role='tab'],
+nav,
+label,
+h1,
+h2,
+h3,
+.botao {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Botão "afunda" de leve ao tocar. `scale` (não transform) para não brigar
+   com elementos que já usam transform para se posicionar. */
+@media (pointer: coarse) {
+  button,
+  a,
+  [role='tab'] {
+    transition: scale 0.12s ease;
+  }
+
+  button:active:not(:disabled),
+  a:active,
+  [role='tab']:active {
+    scale: 0.97;
+  }
+
+  /* Sem barra de rolagem visível no celular. */
+  html {
+    scrollbar-width: none;
+  }
+
+  html::-webkit-scrollbar {
+    display: none;
   }
 }

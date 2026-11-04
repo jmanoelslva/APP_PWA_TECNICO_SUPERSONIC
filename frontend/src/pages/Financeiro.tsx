@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { MdAttachMoney, MdNoteAdd, MdReceipt } from 'react-icons/md'
+import { MdNoteAdd } from 'react-icons/md'
+import { LuReceipt, LuWallet } from 'react-icons/lu'
 import { ApiError, criarObservacaoFatura, listarFaturas, type FaturaDto } from '../api/client'
 import CabecalhoTela from '../components/CabecalhoTela'
 import EstadoVazio from '../components/EstadoVazio'
@@ -74,7 +75,7 @@ export default function Financeiro() {
     <PullToRefresh aoAtualizar={carregar}>
       <div className="financeiro-tela tela-entrada">
         <CabecalhoTela
-          icone={MdAttachMoney}
+          icone={LuWallet}
           cor={CORES.financeiro}
           titulo="Financeiro"
           subtitulo="Faturas e pagamentos em observação."
@@ -102,7 +103,7 @@ export default function Financeiro() {
         )}
 
         {!carregando && !naoPermitido && !erro && faturas.length === 0 && (
-          <EstadoVazio icone={MdReceipt} titulo="Nenhuma fatura encontrada" />
+          <EstadoVazio icone={LuReceipt} titulo="Nenhuma fatura encontrada" />
         )}
 
         {!carregando && !naoPermitido && !erro && faturas.length > 0 && (
@@ -244,7 +245,7 @@ function ModalObservacao({
 
         <div className="financeiro-modal-acoes">
           <button className="botao botao-secundario" onClick={onFechar}>Cancelar</button>
-          <button
+          <button aria-busy={salvando}
             className="botao botao-primario"
             style={{ '--botao-cor': CORES.financeiro } as CSSProperties}
             disabled={salvando}

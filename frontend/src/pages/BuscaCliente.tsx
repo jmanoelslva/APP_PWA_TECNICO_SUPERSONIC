@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { MdCable, MdHistory, MdPeopleAlt, MdWifi } from 'react-icons/md'
+import { LuUsers } from 'react-icons/lu'
 import {
   ApiError,
   buscarClientes,
@@ -104,7 +105,7 @@ export default function BuscaCliente() {
   return (
     <div className="busca-cliente-tela tela-entrada">
       <CabecalhoTela
-        icone={MdPeopleAlt}
+        icone={LuUsers}
         cor={CORES.cliente}
         titulo="Buscar"
         subtitulo="Cliente, serial da ONU ou login PPPoE."
@@ -117,7 +118,7 @@ export default function BuscaCliente() {
           type="search"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          placeholder="Ex: João Silva, 12345 ou FHTT9A3C"
+          placeholder="Nome, CPF, contrato ou serial"
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
@@ -168,7 +169,7 @@ export default function BuscaCliente() {
       )}
 
       {!carregando && jaBuscou && !erro && total === 0 && (
-        <EstadoVazio icone={MdPeopleAlt} titulo="Nada encontrado" subtitulo="Confira os dados e tente novamente." />
+        <EstadoVazio icone={LuUsers} titulo="Nada encontrado" subtitulo="Confira os dados e tente novamente." />
       )}
 
       {!carregando && resultados.onus.length > 0 && (

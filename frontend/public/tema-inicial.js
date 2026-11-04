@@ -10,7 +10,10 @@ try {
   var sol = localStorage.getItem('supersonic-tecnico-sol') === '1'
   document.documentElement.setAttribute('data-theme', tema)
   if (sol) document.documentElement.setAttribute('data-sol', '1')
-  document.documentElement.style.background = sol ? '#ffffff' : tema === 'dark' ? '#121316' : '#f5f5f5'
+  if (localStorage.getItem('supersonic-tecnico-texto') === 'grande') {
+    document.documentElement.setAttribute('data-texto', 'grande')
+  }
+  document.documentElement.style.background = sol ? '#ffffff' : tema === 'dark' ? '#141a1f' : '#f7f8fa'
 } catch (e) {
   // sem armazenamento: o app aplica o tema ao carregar (tema.ts)
 }

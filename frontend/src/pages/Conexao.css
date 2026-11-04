@@ -7,7 +7,6 @@
 .conexao-card {
   background: var(--cor-superficie);
   border-radius: 16px;
-  border-left: 4px solid var(--cor-conexao);
   padding: 18px;
   box-shadow: var(--sombra-card);
   margin-bottom: 16px;
@@ -71,7 +70,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: ui-monospace, Consolas, monospace;
+  font-family: var(--fonte-mono);
   font-size: 14px;
   color: var(--cor-texto);
 }
@@ -90,31 +89,10 @@
   flex-shrink: 0;
 }
 
-.conexao-card-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  border: none;
-  background: transparent;
-  padding: 0;
-  margin-bottom: 4px;
-  color: var(--cor-texto-terciario);
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-}
-
-.conexao-card-toggle h2 {
-  margin: 0;
-}
-
-.conexao-historico-toggle {
+.conexao-historico-titulo {
   /* Sem border-top de propósito — a linha "Última autenticação" logo
-     acima já termina com um separador (deixava de ser :last-child na
-     hora que esse botão passou a vir depois dela), então um border-top
-     aqui virava uma segunda linha coladinha na primeira. */
-  margin-top: 4px;
+     acima já termina com um separador. */
+  margin: 12px 0 4px;
   font-size: 13px;
   font-weight: 800;
 }
@@ -166,7 +144,7 @@
   background: var(--cor-fundo);
   color: var(--cor-texto);
   font-size: 14px;
-  font-family: ui-monospace, Consolas, monospace;
+  font-family: var(--fonte-mono);
 }
 
 .conexao-input:focus {
@@ -407,42 +385,3 @@
   color: var(--cor-texto-secundario);
 }
 
-/* Abas da conexão: Resumo, Wi-Fi, Roteador e Rede. */
-.conexao-abas {
-  position: sticky;
-  top: env(safe-area-inset-top, 0px);
-  z-index: 5;
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  margin-bottom: 14px;
-  border-radius: 14px;
-  background: var(--cor-superficie);
-  box-shadow: var(--sombra-card);
-}
-
-.conexao-aba {
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
-  padding: 0 6px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--cor-texto-secundario);
-  cursor: pointer;
-}
-
-.conexao-aba.ativa {
-  background: color-mix(in srgb, var(--cor-conexao) 14%, var(--cor-superficie));
-  color: var(--cor-texto);
-  box-shadow: inset 0 -2px 0 var(--cor-conexao);
-}
-
-.conexao-aba:focus-visible {
-  outline: 3px solid var(--cor-conexao);
-  outline-offset: 1px;
-}

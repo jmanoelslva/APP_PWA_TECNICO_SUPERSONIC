@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { MdAttachFile, MdBuild, MdChatBubbleOutline, MdClose, MdDownload, MdPictureAsPdf } from 'react-icons/md'
-import VoltarInicio from '../components/VoltarInicio'
+import { MdAttachFile, MdBuild, MdClose, MdDownload, MdPictureAsPdf } from 'react-icons/md'
+import { LuMessageCircle } from 'react-icons/lu'
 import EstadoVazio from '../components/EstadoVazio'
 import EstadoErro from '../components/EstadoErro'
 import Skeleton from '../components/Skeleton'
@@ -51,7 +51,7 @@ function converterOperacao(dto: OperacaoDto): Mensagem | null {
  * (mensagens do escritório/cliente e os próprios eventos da OS, que
  * usam a mesma tabela e aparecem juntos nesta lista).
  */
-export default function DetalheChamado() {
+function DetalheChamadoConteudo() {
   const { ticketPk } = useParams<{ ticketPk: string }>()
   const pk = Number(ticketPk)
   const location = useLocation()
@@ -139,7 +139,6 @@ export default function DetalheChamado() {
   return (
     <div className="detalhe-chamado-tela tela-entrada">
       <header className="detalhe-chamado-cabecalho">
-        <VoltarInicio to="/suporte" label="OS" />
         {ticket && (
           <div className="detalhe-chamado-resumo">
             <div className="detalhe-chamado-resumo-topo">
@@ -174,7 +173,7 @@ export default function DetalheChamado() {
         )}
 
         {!carregando && !erro && mensagens.length === 0 && (
-          <EstadoVazio icone={MdChatBubbleOutline} titulo="Nenhum registro ainda" subtitulo="O histórico deste chamado aparece aqui." />
+          <EstadoVazio icone={LuMessageCircle} titulo="Nenhum registro ainda" subtitulo="O histórico deste chamado aparece aqui." />
         )}
 
         {!carregando &&
@@ -259,4 +258,14 @@ export default function DetalheChamado() {
       )}
     </div>
   )
+}
+
+/**
+ * Uma instância por chamado: trocar de chamado sem sair da tela (aviso de OS,
+ * link, busca) recomeça do zero — sem anexos, checklist, textos ou janelas
+ * da anterior presos na tela.
+ */
+export default function DetalheChamado() {
+  const { ticketPk } = useParams<{ ticketPk: string }>()
+  return <DetalheChamadoConteudo key={ticketPk} />
 }

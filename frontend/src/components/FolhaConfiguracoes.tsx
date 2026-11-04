@@ -1,6 +1,18 @@
 import type { ReactNode } from 'react'
-import { MdDarkMode, MdGetApp, MdLogout, MdNotificationsActive, MdWbSunny } from 'react-icons/md'
+import type { IconType } from 'react-icons'
+import {
+  MdBrightnessAuto,
+  MdDarkMode,
+  MdFormatSize,
+  MdGetApp,
+  MdLightMode,
+  MdLogout,
+  MdNotificationsActive,
+  MdWbSunny,
+} from 'react-icons/md'
 import { useTema } from '../hooks/useTema'
+import type { EscolhaTema } from '../utils/tema'
+import { iniciais } from '../utils/formatacao'
 import type { useAvisos } from '../hooks/useAvisos'
 import './FolhaConfiguracoes.css'
 
@@ -38,6 +50,12 @@ function Interruptor({
   )
 }
 
+const OPCOES_TEMA: { valor: EscolhaTema; rotulo: string; Icone: IconType }[] = [
+  { valor: 'light', rotulo: 'Claro', Icone: MdLightMode },
+  { valor: 'dark', rotulo: 'Escuro', Icone: MdDarkMode },
+  { valor: 'auto', rotulo: 'Automático', Icone: MdBrightnessAuto },
+]
+
 /**
  * Configurações do app (abre pelo avatar da tela inicial): aparência,
  * avisos de OS, instalar e sair, com a versão no rodapé. Substitui o menu
@@ -62,7 +80,7 @@ export default function FolhaConfiguracoes({
   onSair: () => void
   onFechar: () => void
 }) {
-  const { tema, alternarTema, sol, alternarSol } = useTema()
+  const { escolha, escolherTema, sol, alternarSol, grande, alternarTextoGrande } = useTema()
   if (!aberto) return null
   const avisosLigados = avisos.estado === 'ligado'
   const mostrarAvisos = avisos.estado !== 'indisponivel' && avisos.estado !== 'carregando'
@@ -76,18 +94,47 @@ export default function FolhaConfiguracoes({
         aria-label="Configurações"
         onClick={(evento) => evento.stopPropagation()}
       >
-        <h2>Configurações</h2>
-        {usuario && <p className="folha-config-usuario">Conectado como {usuario}</p>}
+        <div className="folha-config-perfil">
+          <span className="folha-config-avatar" aria-hidden="true">
+            {iniciais(usuario)}
+          </span>
+          <div>
+            <h2>Configurações</h2>
+            {usuario && <p className="folha-config-usuario">Conectado como {usuario}</p>}
+          </div>
+        </div>
 
-        <h3>Aparência</h3>
+        <h3 id="folha-config-tema">Aparência</h3>
+        {/* Automático segue o tema do celular (claro de dia, escuro à noite). */}
+        <div className="folha-config-segmentos" role="radiogroup" aria-labelledby="folha-config-tema">
+          {OPCOES_TEMA.map((opcao) => (
+            <button
+              key={opcao.valor}
+              type="button"
+              role="radio"
+              aria-checked={escolha === opcao.valor}
+              className="folha-config-segmento"
+              onClick={() => escolherTema(opcao.valor)}
+            >
+              <opcao.Icone size={20} aria-hidden="true" />
+              {opcao.rotulo}
+            </button>
+          ))}
+        </div>
         <div className="folha-config-grupo">
-          <Interruptor icone={<MdDarkMode size={20} />} titulo="Tema escuro" ligado={tema === 'dark'} onAlternar={alternarTema} />
           <Interruptor
             icone={<MdWbSunny size={20} />}
             titulo="Modo sol"
             dica="Alto contraste para tela no sol"
             ligado={sol}
             onAlternar={alternarSol}
+          />
+          <Interruptor
+            icone={<MdFormatSize size={20} />}
+            titulo="Texto grande"
+            dica="Amplia todo o app"
+            ligado={grande}
+            onAlternar={alternarTextoGrande}
           />
         </div>
 
@@ -110,15 +157,18 @@ export default function FolhaConfiguracoes({
           </>
         )}
 
-        <div className="folha-config-grupo folha-config-acoes">
-          {podeInstalar && (
+        {podeInstalar && (
+          <div className="folha-config-grupo folha-config-acoes">
             <button type="button" className="folha-config-linha" onClick={onInstalar}>
               <span className="folha-config-icone">
                 <MdGetApp size={20} />
               </span>
               <span className="folha-config-texto">Instalar app na tela inicial</span>
             </button>
-          )}
+          </div>
+        )}
+
+        <div className="folha-config-grupo folha-config-acoes">
           <button type="button" className="folha-config-linha folha-config-sair" onClick={onSair}>
             <span className="folha-config-icone">
               <MdLogout size={20} />
