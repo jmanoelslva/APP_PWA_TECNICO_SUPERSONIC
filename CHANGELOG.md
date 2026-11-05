@@ -26,6 +26,9 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   aberta, Sinal na CTO, CTO fechada) e "No cliente" (Sinal na ONU, Etiqueta
   da ONU, Etiqueta do roteador, Instalação pronta), cada uma com a dica do
   que deve aparecer na foto. Os nomes dos arquivos no chamado não mudaram.
+- **Lista de fotos mais legível no celular:** cada foto ocupa a linha
+  inteira (tocar abre a câmera ou a foto), com o nome e a dica sem aperto;
+  "Não foi possível" virou o link "Sem foto?" embaixo da dica.
 - **Motivos de "Não foi possível" por tipo de foto:** CTO (sem acesso, sem
   escada ou altura, chuva), equipamento (do cliente, etiqueta ilegível) e
   recolhimento (cliente ausente, sem equipamento no local).

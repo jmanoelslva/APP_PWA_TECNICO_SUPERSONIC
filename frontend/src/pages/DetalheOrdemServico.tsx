@@ -2,7 +2,9 @@ import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } fro
 import { Link, useLocation, useParams } from 'react-router-dom'
 import {
   MdAttachFile,
+  MdBlock,
   MdCheckCircle,
+  MdChevronRight,
   MdChatBubbleOutline,
   MdContentCopy,
   MdDirections,
@@ -899,57 +901,59 @@ function DetalheOrdemServicoConteudo() {
                           {novoLocal && new Set(fotosTarefa.fotos.map((f) => f.local)).size > 1 && (
                             <h3 className="detalhe-ordem-foto-local">{LOCAIS_FOTO[foto.local]}</h3>
                           )}
+                          {/* Linha inteira tocável: sem foto abre a câmera; com
+                              foto (e miniatura) abre para conferir ou refazer. */}
                           <div className="detalhe-ordem-foto">
-                            <span className={`detalhe-ordem-foto-texto${anexada ? ' detalhe-ordem-foto-ok' : ''}`}>
-                              {miniatura ? (
-                                <button
-                                  type="button"
-                                  className="detalhe-ordem-foto-mini"
-                                  onClick={() => setFotoVendo(foto)}
-                                  aria-label={`Ver a foto ${foto.rotulo}`}
-                                >
+                            <button
+                              type="button"
+                              className={`detalhe-ordem-foto-linha${anexada ? ' detalhe-ordem-foto-ok' : ''}${motivo ? ' detalhe-ordem-foto-dispensada' : ''}`}
+                              disabled={enviandoAnexo && !miniatura}
+                              onClick={() => (miniatura ? setFotoVendo(foto) : setFotoOrigem(foto))}
+                            >
+                              <span className="detalhe-ordem-foto-icone">
+                                {miniatura ? (
                                   <img src={miniatura} alt="" />
-                                </button>
-                              ) : anexada ? (
-                                <MdCheckCircle size={18} />
-                              ) : (
-                                <MdPhotoCamera size={18} />
-                              )}
-                              <span>
-                                {foto.rotulo}
-                                {naFila && <small> · na fila</small>}
-                                {!anexada && !motivo && <small className="detalhe-ordem-foto-motivo">{foto.dica}</small>}
-                                {motivo && <small className="detalhe-ordem-foto-motivo">Não tirada: {motivo}</small>}
+                                ) : anexada ? (
+                                  <MdCheckCircle size={22} />
+                                ) : motivo ? (
+                                  <MdBlock size={22} />
+                                ) : (
+                                  <MdPhotoCamera size={22} />
+                                )}
                               </span>
-                            </span>
-                            <div className="detalhe-ordem-foto-botoes">
-                              {fotosTarefa.obrigatorias && !anexada && (
-                                <button
-                                  type="button"
-                                  className="detalhe-ordem-foto-link"
-                                  onClick={() => {
-                                    if (motivo) {
-                                      alterarDispensa(foto.chave, null)
-                                      return
-                                    }
-                                    setMotivoDispensa('')
-                                    setComplementoDispensa('')
-                                    setDispensando(foto)
-                                  }}
-                                >
-                                  {motivo ? 'Desfazer' : 'Não foi possível'}
-                                </button>
-                              )}
+                              <span className="detalhe-ordem-foto-texto">
+                                <strong>{foto.rotulo}</strong>
+                                <small>
+                                  {anexada
+                                    ? naFila
+                                      ? 'Na fila: sai quando o sinal voltar'
+                                      : 'Enviada'
+                                    : motivo
+                                      ? `Não tirada: ${motivo}`
+                                      : foto.dica}
+                                </small>
+                              </span>
+                              <span className="detalhe-ordem-foto-acao">
+                                {anexada ? (miniatura ? 'Ver' : 'Refazer') : <MdChevronRight size={22} aria-hidden="true" />}
+                              </span>
+                            </button>
+                            {fotosTarefa.obrigatorias && !anexada && (
                               <button
                                 type="button"
-                                className={`botao ${anexada || motivo ? 'botao-secundario' : 'botao-primario'}`}
-                                style={{ '--botao-cor': CORES.suporte } as CSSProperties}
-                                disabled={enviandoAnexo}
-                                onClick={() => setFotoOrigem(foto)}
+                                className="detalhe-ordem-foto-link"
+                                onClick={() => {
+                                  if (motivo) {
+                                    alterarDispensa(foto.chave, null)
+                                    return
+                                  }
+                                  setMotivoDispensa('')
+                                  setComplementoDispensa('')
+                                  setDispensando(foto)
+                                }}
                               >
-                                {anexada ? 'Refazer' : 'Foto'}
+                                {motivo ? 'Desfazer' : 'Sem foto?'}
                               </button>
-                            </div>
+                            )}
                           </div>
                           </div>
                         )

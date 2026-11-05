@@ -395,11 +395,7 @@
 }
 
 .detalhe-ordem-foto {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 56px;
+  padding: 4px 0;
 }
 
 /* Linha entre fotos do mesmo local (o título do local já separa os grupos). */
@@ -407,44 +403,85 @@
   border-top: 1px solid var(--cor-borda-suave);
 }
 
-.detalhe-ordem-foto-texto {
+/* Linha inteira tocável: ícone/miniatura, nome + dica e a ação à direita. */
+.detalhe-ordem-foto-linha {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 15px;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 6px 0;
+  border: none;
+  background: none;
   color: var(--cor-texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.detalhe-ordem-foto-texto svg {
+.detalhe-ordem-foto-icone {
   flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--cor-fundo);
   color: var(--cor-texto-secundario);
 }
 
-.detalhe-ordem-foto-ok svg {
+.detalhe-ordem-foto-icone img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.detalhe-ordem-foto-ok .detalhe-ordem-foto-icone {
   color: var(--cor-suporte);
+}
+
+.detalhe-ordem-foto-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detalhe-ordem-foto-texto strong {
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .detalhe-ordem-foto-texto small {
   font-size: 13px;
+  line-height: 1.35;
   color: var(--cor-texto-secundario);
+  overflow-wrap: anywhere;
 }
 
-.detalhe-ordem-foto-texto small.detalhe-ordem-foto-motivo {
-  display: block;
-  margin-top: 2px;
-}
-
-.detalhe-ordem-foto-botoes {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.detalhe-ordem-foto-acao {
   flex: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cor-suporte);
 }
 
+.detalhe-ordem-foto-acao svg {
+  display: block;
+  color: var(--cor-texto-terciario);
+}
+
+/* "Sem foto?" / "Desfazer": embaixo do texto, alinhado com ele. */
 .detalhe-ordem-foto-link {
+  display: block;
+  margin: -6px 0 4px 56px;
+  min-height: 36px;
   border: none;
   background: transparent;
-  padding: 8px 4px;
+  padding: 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--cor-texto-secundario);
@@ -464,25 +501,6 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--cor-texto-secundario);
-}
-
-.detalhe-ordem-foto-mini {
-  flex: none;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 1px solid var(--cor-borda-suave);
-  border-radius: 8px;
-  overflow: hidden;
-  background: var(--cor-fundo);
-  cursor: pointer;
-}
-
-.detalhe-ordem-foto-mini img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .detalhe-ordem-foto-vendo img {
