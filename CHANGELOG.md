@@ -7,10 +7,41 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Fotos obrigatórias para finalizar a OS, conforme a Tarefa:** instalação
+  de fibra e mudança de endereço exigem sete fotos (CTO aberta, CTO fechada,
+  atenuação na ONU, atenuação na CTO, instalação concluída, MAC do roteador e
+  MAC da ONU); desinstalação exige a ONU e o roteador recolhidos, com etiqueta.
+  As demais tarefas (inclusive instalação por rádio) mostram as fotos como
+  opcionais. Sem as obrigatórias, "Finalizar" avisa o que falta e abre a aba
+  Checklist. Cada foto sobe para o chamado com o nome da etapa (ex.:
+  `cto-aberta-123.jpg`); sem sinal, vai para a fila e já conta, mas volta a
+  faltar se o servidor recusar.
+- **"Não foi possível" em cada foto obrigatória:** dispensa só aquela foto,
+  com motivo obrigatório (CTO sem acesso, cliente ausente etc.), que entra na
+  descrição da finalização.
+- **Câmera dentro do app:** tela cheia com disparo, galeria no canto e virar a
+  câmera; sem câmera, oferece a câmera do telefone e a galeria.
+- **Carimbo nas fotos da OS:** número da OS, data e hora e posição do GPS no
+  rodapé da imagem.
+
+### Corrigido
+
+- **Aviso cobrindo o botão de etapa:** com a barra de ação no rodapé da OS, o
+  aviso aparece acima dela.
+
 ### Alterado
 
 - **Login:** o nome embaixo do logotipo passa a ser "SUPERSONIC Técnico" (antes
   "App Técnico").
+- **Aba "Checklist" da OS passa a se chamar "Fotos".**
+
+### Removido
+
+- **Checklist de saída (caixas de marcar):** ficou redundante com as fotos
+  obrigatórias. A leitura do sinal da ONU continua entrando pronta na
+  descrição da finalização.
 
 ## [1.22.0] - 2026-11-04
 

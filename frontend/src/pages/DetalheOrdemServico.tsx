@@ -23,6 +23,7 @@ import AcoesContato from '../components/AcoesContato'
 import Skeleton from '../components/Skeleton'
 import EstadoErro from '../components/EstadoErro'
 import { useToast } from '../components/Toast/useToast'
+import CameraFoto from '../components/CameraFoto'
 import { CORES } from '../utils/cores'
 import {
   ApiError,
@@ -59,8 +60,23 @@ import {
 } from '../utils/formatacao'
 import { linkRota, osAtrasada, quandoOs } from '../utils/minhasOs'
 import { comprimirImagem } from '../utils/imagem'
+import { carimbarImagem, linhasCarimbo, posicaoRapida } from '../utils/carimbo'
 import { EVENTO_FILA, ehFalhaDeRede, enfileirarAnexo, type DetalheEventoFila } from '../utils/filaAnexos'
-import { ITENS_CHECKLIST, lerChecklist, salvarChecklist, textoChecklist } from '../utils/checklistSaida'
+import {
+  MOTIVOS_DISPENSA,
+  fotosDaTarefa,
+  lerDispensas,
+  salvarDispensas,
+  textoDispensas,
+  type FotosDispensadas,
+  fotosFaltando,
+  lerFotos,
+  nomeArquivoFoto,
+  salvarFotos,
+  textoSinal,
+  type FotoObrigatoria,
+  type FotosAnexadas,
+} from '../utils/checklistSaida'
 import './DetalheOrdemServico.css'
 
 interface AnexoEnviado {
@@ -202,12 +218,12 @@ function enderecoResumo(endereco: { address?: string; address_number?: string; a
 type AbaOs = 'resumo' | 'conexao' | 'checklist' | 'historico'
 
 // O topo (título, etapas, rota e contato) e o botão do rodapé ficam fora das
-// abas, sempre à vista. "Checklist" junta o que se faz ao terminar o
-// atendimento: checklist de saída e fotos/anexos.
+// abas, sempre à vista. "Fotos" junta o que se faz ao terminar o
+// atendimento: fotos da Tarefa e anexos.
 const ABAS: Aba<AbaOs>[] = [
   { chave: 'resumo', rotulo: 'Resumo' },
   { chave: 'conexao', rotulo: 'Conexão' },
-  { chave: 'checklist', rotulo: 'Checklist' },
+  { chave: 'checklist', rotulo: 'Fotos' },
   { chave: 'historico', rotulo: 'Histórico' },
 ]
 
@@ -248,32 +264,93 @@ function DetalheOrdemServicoConteudo() {
 
   const inputArquivoRef = useRef<HTMLInputElement>(null)
   const inputCameraRef = useRef<HTMLInputElement>(null)
-  // Checklist de saída desta OS (salvo no aparelho por OS).
-  const [checklist, setChecklist] = useState<string[]>([])
+  // Fotos desta OS conforme a Tarefa (salvas no aparelho por OS); sem as
+  // obrigatórias (anexadas ou dispensadas com motivo), não finaliza.
+  const [fotos, setFotos] = useState<FotosAnexadas>({})
+  const [dispensas, setDispensas] = useState<FotosDispensadas>({})
+  // Foto obrigatória sendo dispensada ("Não foi possível"), com o motivo.
+  const [dispensando, setDispensando] = useState<FotoObrigatoria | null>(null)
+  const [motivoDispensa, setMotivoDispensa] = useState('')
+  const [complementoDispensa, setComplementoDispensa] = useState('')
+  const fotosTarefa = fotosDaTarefa(osAtual?.task_pk)
+  // Foto obrigatória com a câmera aberta (components/CameraFoto.tsx).
+  const [fotoOrigem, setFotoOrigem] = useState<FotoObrigatoria | null>(null)
 
   useEffect(() => () => urlsPreviaRef.current.forEach((url) => URL.revokeObjectURL(url)), [])
 
   useEffect(() => {
-    if (osAtual?.op_pk) setChecklist(lerChecklist(osAtual.op_pk))
+    if (osAtual?.op_pk) {
+      setFotos(lerFotos(osAtual.op_pk))
+      setDispensas(lerDispensas(osAtual.op_pk))
+    }
   }, [osAtual?.op_pk])
 
   // Anexo que estava na fila saiu (ou foi recusado) com a tela aberta.
+  // Foto obrigatória recusada volta a faltar.
   useEffect(() => {
     function aoMudarFila(evento: Event) {
       const { id, resultado } = (evento as CustomEvent<DetalheEventoFila>).detail
       setAnexosEnviados((atuais) =>
         atuais.map((a) => (a.filaId === id ? { ...a, situacao: resultado === 'enviado' ? 'enviado' : 'erro' } : a)),
       )
+      const opPk = osAtual?.op_pk
+      if (!opPk) return
+      const atuais = lerFotos(opPk)
+      const chave = Object.keys(atuais).find((c) => atuais[c] === id)
+      if (!chave) return
+      if (resultado === 'enviado') atuais[chave] = null
+      else delete atuais[chave]
+      salvarFotos(opPk, atuais)
+      setFotos(atuais)
+      if (resultado !== 'enviado') toast('Uma foto obrigatória foi recusada pelo servidor. Tire de novo.')
     }
     window.addEventListener(EVENTO_FILA, aoMudarFila)
     return () => window.removeEventListener(EVENTO_FILA, aoMudarFila)
-  }, [])
+  }, [osAtual?.op_pk])
 
-  function alternarItemChecklist(chave: string) {
+  function marcarFoto(opPk: number, chave: string, filaId: number | null) {
+    const novas = { ...lerFotos(opPk), [chave]: filaId }
+    salvarFotos(opPk, novas)
+    setFotos(novas)
+    // Foto tirada vale mais que a dispensa: some o motivo.
+    const dispensasAtuais = lerDispensas(opPk)
+    if (dispensasAtuais[chave]) {
+      delete dispensasAtuais[chave]
+      salvarDispensas(opPk, dispensasAtuais)
+      setDispensas(dispensasAtuais)
+    }
+  }
+
+  function alterarDispensa(chave: string, motivo: string | null) {
     if (!osAtual?.op_pk) return
-    const novo = checklist.includes(chave) ? checklist.filter((item) => item !== chave) : [...checklist, chave]
-    setChecklist(novo)
-    salvarChecklist(osAtual.op_pk, novo)
+    const novas = { ...dispensas }
+    if (motivo) novas[chave] = motivo
+    else delete novas[chave]
+    salvarDispensas(osAtual.op_pk, novas)
+    setDispensas(novas)
+  }
+
+  function confirmarDispensa() {
+    if (!dispensando) return
+    const complemento = complementoDispensa.trim()
+    if (!motivoDispensa || (motivoDispensa === 'Outro' && !complemento)) {
+      toast(motivoDispensa === 'Outro' ? 'Descreva o motivo.' : 'Escolha o motivo.')
+      return
+    }
+    const motivo =
+      motivoDispensa === 'Outro' ? complemento : complemento ? `${motivoDispensa}: ${complemento}` : motivoDispensa
+    alterarDispensa(dispensando.chave, motivo)
+    setDispensando(null)
+  }
+
+  /** Fotos obrigatórias pendentes: avisa, abre a aba Checklist e retorna true. */
+  function bloqueiaPorFotos(): boolean {
+    if (!fotosTarefa.obrigatorias) return false
+    const faltando = fotosFaltando(fotosTarefa.fotos, fotos, dispensas)
+    if (!faltando.length) return false
+    toast(`Para finalizar, faltam fotos: ${faltando.map((f) => f.rotulo).join(', ')}.`)
+    setAba('checklist')
+    return true
   }
 
   useEffect(() => {
@@ -393,6 +470,10 @@ function DetalheOrdemServicoConteudo() {
       toast(`Descreva o que foi feito antes de confirmar "${etapa.rotulo}".`)
       return
     }
+    if (exigeObservacao && bloqueiaPorFotos()) {
+      setAcaoConfirmando(null)
+      return
+    }
     setExecutandoEtapa(true)
     try {
       const chamada = acaoConfirmando.desfazer ? etapa.desfazer : etapa.marcar
@@ -401,11 +482,13 @@ function DetalheOrdemServicoConteudo() {
         acaoConfirmando.desfazer ? `Etapa "${etapa.rotulo}" desfeita.` : `Etapa "${etapa.rotulo}" confirmada.`,
         'sucesso',
       )
-      // Finalizada: o checklist já foi para a descrição — não fica marcado
-      // no aparelho (nem reaparece se a OS for reaberta).
+      // Finalizada: fotos e dispensas não ficam no aparelho (nem reaparecem
+      // se a OS for reaberta).
       if (etapa.chave === 'finalizar' && !acaoConfirmando.desfazer) {
-        salvarChecklist(osAtual.op_pk, [])
-        setChecklist([])
+        salvarFotos(osAtual.op_pk, {})
+        setFotos({})
+        salvarDispensas(osAtual.op_pk, {})
+        setDispensas({})
       }
       setAcaoConfirmando(null)
       setObservacaoEtapa('')
@@ -423,10 +506,14 @@ function DetalheOrdemServicoConteudo() {
     }
   }
 
-  async function aoSelecionarArquivo(evento: ChangeEvent<HTMLInputElement>) {
+  function aoSelecionarArquivo(evento: ChangeEvent<HTMLInputElement>) {
     const original = evento.target.files?.[0]
     evento.target.value = ''
-    if (!original) return
+    if (original) void enviarArquivo(original)
+  }
+
+  async function enviarArquivo(original: File, foto?: FotoObrigatoria) {
+    const opPk = osAtual?.op_pk
     const id = Date.now()
     const previa =
       original.type.startsWith('image/') && !original.type.startsWith('image/svg') ? URL.createObjectURL(original) : null
@@ -435,13 +522,24 @@ function DetalheOrdemServicoConteudo() {
       setAnexosEnviados((atuais) => atuais.map((a) => (a.id === id ? { ...a, situacao: nova, filaId } : a)))
     setAnexosEnviados((atuais) => [{ id, nome: original.name, previa, situacao: 'enviando' }, ...atuais])
     setEnviandoAnexo(true)
-    // Foto grande é reduzida no aparelho antes de subir (utils/imagem.ts).
-    const arquivo = await comprimirImagem(original)
+    // Foto grande é reduzida no aparelho antes de subir (utils/imagem.ts);
+    // foto da OS também ganha o carimbo de OS, data/hora e GPS.
+    const comprimido =
+      foto && opPk
+        ? await carimbarImagem(original, linhasCarimbo(opPk, new Date(), await posicaoRapida()))
+        : await comprimirImagem(original)
+    // Foto obrigatória sobe com o nome da etapa, para achar no chamado.
+    const arquivo =
+      foto && opPk
+        ? new File([comprimido], nomeArquivoFoto(foto.chave, opPk, comprimido.name), { type: comprimido.type })
+        : comprimido
 
     // Sem sinal: guarda no aparelho e envia quando a internet voltar.
     async function paraFila() {
       try {
-        situacao('fila', await enfileirarAnexo(pk, arquivo))
+        const filaId = await enfileirarAnexo(pk, arquivo)
+        situacao('fila', filaId)
+        if (foto && opPk) marcarFoto(opPk, foto.chave, filaId)
         toast('Sem sinal: o anexo ficou na fila e é enviado quando a internet voltar.')
       } catch {
         situacao('erro')
@@ -459,7 +557,8 @@ function DetalheOrdemServicoConteudo() {
       // na tela da OS.
       await enviarAnexoTicket(pk, arquivo)
       situacao('enviado')
-      toast('Anexo enviado.', 'sucesso')
+      if (foto && opPk) marcarFoto(opPk, foto.chave, null)
+      toast(foto ? `Foto "${foto.rotulo}" enviada.` : 'Anexo enviado.', 'sucesso')
     } catch (excecao) {
       if (ehFalhaDeRede(excecao)) {
         await paraFila()
@@ -711,29 +810,117 @@ function DetalheOrdemServicoConteudo() {
                 {!encerrada && osAtual.op_pk && (
                   <div className="detalhe-ordem-card">
                     <div className="detalhe-ordem-topo">
-                      <h2>Checklist de saída</h2>
+                      <h2>{fotosTarefa.obrigatorias ? 'Fotos obrigatórias' : 'Fotos (opcionais)'}</h2>
                       <span className="detalhe-ordem-checklist-contagem">
-                        {checklist.length} de {ITENS_CHECKLIST.length}
+                        {fotosTarefa.fotos.length - fotosFaltando(fotosTarefa.fotos, fotos, dispensas).length} de{' '}
+                        {fotosTarefa.fotos.length}
                       </span>
                     </div>
-                    <div className="detalhe-ordem-checklist">
-                      {ITENS_CHECKLIST.map((item) => (
-                        <label key={item.chave}>
-                          <input
-                            type="checkbox"
-                            checked={checklist.includes(item.chave)}
-                            onChange={() => alternarItemChecklist(item.chave)}
-                          />
-                          <span>
-                            {item.rotulo}
-                            {item.chave === 'sinal' && onuOs?.omddm_rx_power != null && (
-                              <small> · agora {onuOs.omddm_rx_power.toLocaleString('pt-BR')} dBm</small>
-                            )}
-                          </span>
-                        </label>
-                      ))}
+                    <div className="detalhe-ordem-fotos">
+                      {fotosTarefa.fotos.map((foto) => {
+                        const anexada = foto.chave in fotos
+                        const naFila = anexada && fotos[foto.chave] !== null
+                        const motivo = !anexada ? dispensas[foto.chave] : undefined
+                        return (
+                          <div key={foto.chave} className="detalhe-ordem-foto">
+                            <span className={`detalhe-ordem-foto-texto${anexada ? ' detalhe-ordem-foto-ok' : ''}`}>
+                              {anexada ? <MdCheckCircle size={18} /> : <MdPhotoCamera size={18} />}
+                              <span>
+                                {foto.rotulo}
+                                {naFila && <small> · na fila</small>}
+                                {motivo && <small className="detalhe-ordem-foto-motivo">Não tirada: {motivo}</small>}
+                              </span>
+                            </span>
+                            <div className="detalhe-ordem-foto-botoes">
+                              {fotosTarefa.obrigatorias && !anexada && (
+                                <button
+                                  type="button"
+                                  className="detalhe-ordem-foto-link"
+                                  onClick={() => {
+                                    if (motivo) {
+                                      alterarDispensa(foto.chave, null)
+                                      return
+                                    }
+                                    setMotivoDispensa('')
+                                    setComplementoDispensa('')
+                                    setDispensando(foto)
+                                  }}
+                                >
+                                  {motivo ? 'Desfazer' : 'Não foi possível'}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className={`botao ${anexada || motivo ? 'botao-secundario' : 'botao-primario'}`}
+                                style={{ '--botao-cor': CORES.suporte } as CSSProperties}
+                                disabled={enviandoAnexo}
+                                onClick={() => setFotoOrigem(foto)}
+                              >
+                                {anexada ? 'Refazer' : 'Foto'}
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
-                    <p className="detalhe-ordem-lido">Ao finalizar, o que estiver marcado já entra na descrição.</p>
+                    <p className="detalhe-ordem-lido">
+                      {fotosTarefa.obrigatorias
+                        ? 'Sem todas as fotos (ou o motivo de não tirar), a OS não pode ser finalizada.'
+                        : 'Esta tarefa não exige fotos para finalizar.'}
+                    </p>
+                  </div>
+                )}
+
+                {fotoOrigem && (
+                  <CameraFoto
+                    titulo={fotoOrigem.rotulo}
+                    onFoto={(arquivo) => {
+                      const foto = fotoOrigem
+                      setFotoOrigem(null)
+                      void enviarArquivo(arquivo, foto)
+                    }}
+                    onFechar={() => setFotoOrigem(null)}
+                  />
+                )}
+
+                {dispensando && (
+                  <div className="detalhe-ordem-modal-fundo" onClick={() => setDispensando(null)}>
+                    <div className="detalhe-ordem-modal" onClick={(evento) => evento.stopPropagation()}>
+                      <h2>Sem foto: {dispensando.rotulo}</h2>
+                      <p className="detalhe-ordem-modal-texto">Por que não foi possível? O motivo vai na descrição da OS.</p>
+                      <div className="detalhe-ordem-motivos">
+                        {MOTIVOS_DISPENSA.map((opcao) => (
+                          <button
+                            key={opcao}
+                            type="button"
+                            className={`detalhe-ordem-motivo${motivoDispensa === opcao ? ' detalhe-ordem-motivo-ativo' : ''}`}
+                            aria-pressed={motivoDispensa === opcao}
+                            onClick={() => setMotivoDispensa(opcao)}
+                          >
+                            {opcao}
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        value={complementoDispensa}
+                        onChange={(e) => setComplementoDispensa(e.target.value)}
+                        placeholder={motivoDispensa === 'Outro' ? 'Descreva o motivo (obrigatório)' : 'Detalhe, se quiser'}
+                        rows={2}
+                      />
+                      <div className="detalhe-ordem-modal-acoes">
+                        <button type="button" className="botao botao-secundario" onClick={() => setDispensando(null)}>
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          className="botao botao-primario"
+                          style={{ '--botao-cor': CORES.suporte } as CSSProperties}
+                          onClick={confirmarDispensa}
+                        >
+                          Confirmar
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -889,9 +1076,15 @@ function DetalheOrdemServicoConteudo() {
                   className="botao botao-primario botao-bloco detalhe-ordem-barra-botao"
                   style={{ '--botao-cor': CORES.suporte } as CSSProperties}
                   onClick={() => {
-                    // Finalizar: o checklist marcado já entra na descrição (editável).
+                    // Finalizar: exige as fotos obrigatórias; o sinal da ONU
+                    // e as fotos dispensadas já entram na descrição (editável).
+                    if (proximaEtapa.chave === 'finalizar' && bloqueiaPorFotos()) return
                     if (proximaEtapa.chave === 'finalizar' && !observacaoEtapa.trim()) {
-                      setObservacaoEtapa(textoChecklist(checklist, onuOs?.omddm_rx_power))
+                      setObservacaoEtapa(
+                        [textoSinal(onuOs?.omddm_rx_power), textoDispensas(fotosTarefa.fotos, dispensas)]
+                          .filter(Boolean)
+                          .join('\n'),
+                      )
                     }
                     setAcaoConfirmando({ etapa: proximaEtapa.chave, desfazer: false })
                   }}
