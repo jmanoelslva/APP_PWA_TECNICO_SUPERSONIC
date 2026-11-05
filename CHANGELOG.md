@@ -7,6 +7,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não lançado]
 
+## [1.23.2] - 2026-11-05
+
 ### Alterado
 
 - **Botões do topo da OS:** Rota, Ligar, WhatsApp e Chamado numa grade de
@@ -825,6 +827,7 @@ aplicativo.
 - Link de Contrato na tela de ONU.
 
 [não lançado]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.22.0...HEAD
+[1.23.2]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.23.1...v1.23.2
 [1.23.1]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.23.0...v1.23.1
 [1.23.0]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.20.0...v1.22.0

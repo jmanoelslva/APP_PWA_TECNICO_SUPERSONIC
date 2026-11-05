@@ -30,6 +30,7 @@ TITULOS = {
     "1.22.0": "Jeito de app nativo, checklist de saída, abas e busca corrigida",
     "1.23.0": "Fotos obrigatórias por Tarefa, câmera no app e carimbo nas fotos",
     "1.23.1": "Número da OS no carimbo e seleção de texto só nos campos",
+    "1.23.2": "Botões da OS em grade, etiquetas visíveis e sem menu ao segurar",
     "1.0.0": "Primeira versão estável",
     "1.4.0": "Sessão do Controllr pelo cookie do login e detecção de sessão encerrada",
     "1.5.0": "Motivo e data/hora da última queda da ONU",
