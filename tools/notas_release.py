@@ -32,6 +32,7 @@ TITULOS = {
     "1.23.1": "Número da OS no carimbo e seleção de texto só nos campos",
     "1.23.2": "Botões da OS em grade, etiquetas visíveis e sem menu ao segurar",
     "1.23.3": "Voltar como app nativo, teclado certo nos campos e tela de trás parada",
+    "1.25.0": "Auditoria completa: CTO, observação, etapas da OS, liberação financeira e login",
     "1.24.0": "Mensagem e anexo no chamado, atalhos sem texto cortado e botões sem degradê",
     "1.0.0": "Primeira versão estável",
     "1.4.0": "Sessão do Controllr pelo cookie do login e detecção de sessão encerrada",
