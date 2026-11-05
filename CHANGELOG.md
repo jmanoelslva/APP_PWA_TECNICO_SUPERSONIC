@@ -7,6 +7,22 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não lançado]
 
+## [1.24.0] - 2026-11-05
+
+### Adicionado
+
+- **Mensagem e anexo no chamado:** com o chamado aberto, o técnico volta a
+  poder enviar mensagem de texto e anexo (tirar foto, galeria ou arquivo)
+  pela tela do Suporte; foto grande é reduzida antes de subir.
+
+### Corrigido
+
+- **Atalhos do Início:** a descrição (ex.: "Nenhuma agendada para os
+  próximos dias") quebra linha em vez de ser cortada com "…".
+- **Botões sem degradê:** Enviar do chamado, Buscar cliente, botão verde do
+  cliente e o da tela de erro passam a ter cor sólida, como os demais
+  botões do app.
+
 ## [1.23.3] - 2026-11-05
 
 ### Alterado
@@ -852,6 +868,7 @@ aplicativo.
 - Link de Contrato na tela de ONU.
 
 [não lançado]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.22.0...HEAD
+[1.24.0]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.23.3...v1.24.0
 [1.23.3]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.23.2...v1.23.3
 [1.23.2]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.23.1...v1.23.2
 [1.23.1]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.23.0...v1.23.1

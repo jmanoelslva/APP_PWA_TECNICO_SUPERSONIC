@@ -1,11 +1,31 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { MdAttachFile, MdBuild, MdClose, MdDownload, MdPictureAsPdf } from 'react-icons/md'
+import {
+  MdAttachFile,
+  MdBuild,
+  MdClose,
+  MdDescription,
+  MdDownload,
+  MdImage,
+  MdPhotoCamera,
+  MdPictureAsPdf,
+} from 'react-icons/md'
+import { comprimirImagem } from '../utils/imagem'
 import { LuMessageCircle } from 'react-icons/lu'
 import EstadoVazio from '../components/EstadoVazio'
 import EstadoErro from '../components/EstadoErro'
 import Skeleton from '../components/Skeleton'
-import { detalheTicket, listarMensagensTicket, listarOrdensServico, type OperacaoDto, type TicketDto } from '../api/client'
+import { useToast } from '../components/Toast/useToast'
+import {
+  ApiError,
+  criarMensagemTicket,
+  detalheTicket,
+  enviarAnexoTicket,
+  listarMensagensTicket,
+  listarOrdensServico,
+  type OperacaoDto,
+  type TicketDto,
+} from '../api/client'
 import { formatarDataHora } from '../utils/formatacao'
 import { CORES } from '../utils/cores'
 import './DetalheChamado.css'
@@ -45,17 +65,23 @@ function converterOperacao(dto: OperacaoDto): Mensagem | null {
 
 /**
  * Chamado (ticket) e Ordem de Serviço são dois recursos/endpoints
- * diferentes no Controllr. O envio de mensagem foi removido de
- * propósito: tudo que o técnico precisa registrar sobre o atendimento é
- * feito pela descrição dos botões de Responder/Iniciar/Finalizar na tela
- * da OS (/os/:ticketPk) — esta tela é só um histórico de leitura
- * (mensagens do escritório/cliente e os próprios eventos da OS, que
- * usam a mesma tabela e aparecem juntos nesta lista).
+ * diferentes no Controllr. Esta tela mostra o histórico (mensagens do
+ * escritório/cliente e os eventos da OS, que usam a mesma tabela) e,
+ * com o chamado aberto, permite enviar mensagem de texto e anexo (foto,
+ * galeria ou arquivo — o mesmo endpoint usado pela tela da OS).
  */
 function DetalheChamadoConteudo() {
   const { ticketPk } = useParams<{ ticketPk: string }>()
   const pk = Number(ticketPk)
   const location = useLocation()
+  const { toast } = useToast()
+  const [texto, setTexto] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [menuAnexoAberto, setMenuAnexoAberto] = useState(false)
+  useFecharComVoltar(menuAnexoAberto, () => setMenuAnexoAberto(false))
+  const inputFotoRef = useRef<HTMLInputElement>(null)
+  const inputGaleriaRef = useRef<HTMLInputElement>(null)
+  const inputArquivoRef = useRef<HTMLInputElement>(null)
 
   const estadoNavegacao = location.state as { chamado?: TicketDto } | null
   const [ticket, setTicket] = useState<TicketDto | null>(estadoNavegacao?.chamado ?? null)
@@ -131,6 +157,41 @@ function DetalheChamadoConteudo() {
       if (mostrarCarregando) setErro('Não foi possível carregar o histórico deste chamado.')
     } finally {
       if (mostrarCarregando) setCarregando(false)
+    }
+  }
+
+  async function aoEnviarMensagem() {
+    const valor = texto.trim()
+    if (enviando || !valor) return
+    setEnviando(true)
+    try {
+      await criarMensagemTicket(pk, valor)
+      setTexto('')
+      await carregar(false)
+      setTimeout(() => fimDaListaRef.current?.scrollIntoView({ block: 'end' }), 0)
+    } catch (excecao) {
+      toast(excecao instanceof ApiError ? excecao.message : 'Não foi possível enviar a mensagem.')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  async function aoSelecionarArquivo(evento: ChangeEvent<HTMLInputElement>) {
+    const original = evento.target.files?.[0]
+    evento.target.value = ''
+    setMenuAnexoAberto(false)
+    if (!original || enviando) return
+    setEnviando(true)
+    try {
+      // Foto grande é reduzida no aparelho antes de subir (utils/imagem.ts).
+      await enviarAnexoTicket(pk, await comprimirImagem(original))
+      toast('Anexo enviado.', 'sucesso')
+      await carregar(false)
+      setTimeout(() => fimDaListaRef.current?.scrollIntoView({ block: 'end' }), 0)
+    } catch (excecao) {
+      toast(excecao instanceof ApiError ? excecao.message : 'Não foi possível enviar o anexo.')
+    } finally {
+      setEnviando(false)
     }
   }
 
@@ -228,6 +289,67 @@ function DetalheChamadoConteudo() {
           ))}
         <div ref={fimDaListaRef} />
       </div>
+
+      {ticket && !fechado && (
+        <form
+          className="detalhe-chamado-envio"
+          onSubmit={(e) => {
+            e.preventDefault()
+            aoEnviarMensagem()
+          }}
+        >
+          <input ref={inputFotoRef} type="file" accept="image/*" capture="environment" hidden onChange={aoSelecionarArquivo} />
+          <input ref={inputGaleriaRef} type="file" accept="image/*,video/*" hidden onChange={aoSelecionarArquivo} />
+          <input ref={inputArquivoRef} type="file" hidden onChange={aoSelecionarArquivo} />
+          <div className="detalhe-chamado-anexo-wrapper">
+            <button
+              type="button"
+              className="detalhe-chamado-btn-anexar"
+              disabled={enviando}
+              aria-label="Anexar"
+              aria-expanded={menuAnexoAberto}
+              onClick={() => setMenuAnexoAberto((v) => !v)}
+            >
+              <MdAttachFile size={20} />
+            </button>
+            {menuAnexoAberto && (
+              <>
+                <div className="detalhe-chamado-menu-fundo" onClick={() => setMenuAnexoAberto(false)} />
+                <div className="detalhe-chamado-menu-anexo">
+                  <button type="button" onClick={() => inputFotoRef.current?.click()}>
+                    <MdPhotoCamera size={18} /> Tirar foto
+                  </button>
+                  <button type="button" onClick={() => inputGaleriaRef.current?.click()}>
+                    <MdImage size={18} /> Galeria
+                  </button>
+                  <button type="button" onClick={() => inputArquivoRef.current?.click()}>
+                    <MdDescription size={18} /> Arquivo
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          <input
+            type="text"
+            className="detalhe-chamado-input-mensagem"
+            placeholder="Escreva uma mensagem"
+            aria-label="Mensagem"
+            enterKeyHint="send"
+            autoCapitalize="sentences"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            disabled={enviando}
+          />
+          <button
+            type="submit"
+            className="detalhe-chamado-btn-enviar"
+            disabled={enviando || !texto.trim()}
+            aria-busy={enviando}
+          >
+            Enviar
+          </button>
+        </form>
+      )}
 
       {imagemAberta && (
         <div className="chamado-imagem-modal-fundo" onClick={() => setImagemAberta(null)}>
