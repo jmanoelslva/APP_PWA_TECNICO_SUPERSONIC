@@ -7,9 +7,11 @@ import {
   fotosFaltando,
   lerDispensas,
   lerFotos,
+  lerMiniaturas,
   nomeArquivoFoto,
   salvarDispensas,
   salvarFotos,
+  salvarMiniaturas,
   textoSinal,
   textoDispensas,
 } from './checklistSaida'
@@ -87,7 +89,7 @@ describe('fotos obrigatórias', () => {
 
   it('texto e armazenamento das dispensas', () => {
     expect(textoDispensas(FOTOS_FIBRA, { 'mac-onu': 'Cliente ausente', 'cto-aberta': 'CTO sem acesso' })).toBe(
-      'Fotos não tiradas: CTO aberta (CTO sem acesso); MAC da ONU (Cliente ausente).',
+      'Fotos não tiradas: CTO aberta (CTO sem acesso); Etiqueta da ONU (Cliente ausente).',
     )
     expect(textoDispensas(FOTOS_FIBRA, {})).toBe('')
     salvarDispensas(10, { 'cto-aberta': 'CTO sem acesso', vazio: ' ' })
@@ -117,5 +119,37 @@ describe('fotos obrigatórias', () => {
   it('nomeia o arquivo pela etapa', () => {
     expect(nomeArquivoFoto('cto-aberta', 55, 'IMG_2026.JPEG')).toBe('cto-aberta-55.jpeg')
     expect(nomeArquivoFoto('mac-onu', 55, 'foto')).toBe('mac-onu-55.jpg')
+  })
+})
+
+describe('miniaturas das fotos', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('guarda por OS e apaga as de OS paradas há mais de 3 dias', () => {
+    const dia = 24 * 60 * 60 * 1000
+    salvarMiniaturas(1, { 'cto-aberta': 'data:image/jpeg;base64,AAA' }, 0)
+    salvarMiniaturas(2, { 'mac-onu': 'data:image/jpeg;base64,BBB' }, 2 * dia)
+    expect(lerMiniaturas(1)).toEqual({ 'cto-aberta': 'data:image/jpeg;base64,AAA' })
+    salvarMiniaturas(3, { instalacao: 'data:image/jpeg;base64,CCC' }, 4 * dia)
+    expect(lerMiniaturas(1)).toEqual({})
+    expect(lerMiniaturas(2)).toEqual({ 'mac-onu': 'data:image/jpeg;base64,BBB' })
+    salvarMiniaturas(3, {}, 4 * dia)
+    expect(lerMiniaturas(3)).toEqual({})
+  })
+
+  it('ignora o que não é imagem', () => {
+    localStorage.setItem('supersonic-tecnico-fotos-mini-9', JSON.stringify({ em: 1, fotos: { a: 'javascript:x', b: 'data:image/png;base64,Z' } }))
+    expect(lerMiniaturas(9)).toEqual({ b: 'data:image/png;base64,Z' })
+  })
+})
+
+describe('fotos da fibra', () => {
+  it('na ordem do serviço: CTO antes do cliente, cada uma com dica e motivos', () => {
+    const locais = FOTOS_FIBRA.map((f) => f.local)
+    expect(locais.lastIndexOf('cto')).toBeLessThan(locais.indexOf('cliente'))
+    for (const foto of [...FOTOS_FIBRA, ...FOTOS_DESINSTALACAO]) {
+      expect(foto.dica).not.toBe('')
+      expect(foto.motivos.at(-1)).toBe('Outro')
+    }
   })
 })

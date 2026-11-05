@@ -311,3 +311,31 @@ def test_login_cookie_seguro_e_sem_lista_de_usuarios(monkeypatch):
     assert r.json() == {"success": True, "message": None, "tecnico": {"username": "joao"}}
     cookie = r.headers["set-cookie"].lower()
     assert "secure" in cookie and "httponly" in cookie
+
+
+def test_finalizar_registra_sinal_lido_pelo_servidor(pasta, monkeypatch):
+    from app.brbyteapi.controllr import AsyncControllr
+    from app.deps import get_current_session
+    from app.main import app
+
+    async def falso_post(self, caminho, body):
+        return SimpleNamespace(success=True, results=[])
+
+    async def falsa_onu_list(self, body, model_return=False, model_extended=False):
+        onu = SimpleNamespace(model_dump=lambda mode=None: {
+            "sn": "ZTEG1234ABCD", "omddm_rx_power": -21.5, "olt_omddm_rx_power": -24.1})
+        outra = SimpleNamespace(model_dump=lambda mode=None: {"sn": "OUTRA", "omddm_rx_power": -10.0})
+        return SimpleNamespace(success=True, results=[outra, onu])
+
+    monkeypatch.setattr(AsyncControllr, "call_api_post", falso_post)
+    monkeypatch.setattr(AsyncControllr, "onu_list", falsa_onu_list)
+    app.dependency_overrides[get_current_session] = lambda: sessao("joao")
+    try:
+        c = TestClient(app)
+        assert c.post("/os/7/finalizar", json={"op_os_pk": 70, "op_desc": "Ok", "onu_serial": "zteg1234abcd"}).status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+
+    (fim,), _ = audit.consultar()
+    assert fim["alvo"] == {"ticket_pk": 7, "op_os_pk": 70, "motivo": "Ok", "serial": "ZTEG1234ABCD",
+                           "sinal_onu": -21.5, "sinal_olt": -24.1}

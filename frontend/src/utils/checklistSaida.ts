@@ -18,23 +18,55 @@ export function textoSinal(rx?: number | null): string {
  * for dispensada com motivo.
  */
 export interface FotoObrigatoria {
+  // Vai no nome do arquivo no chamado; não muda junto com o rótulo, para
+  // não perder as fotos já marcadas de uma OS em andamento.
   chave: string
   rotulo: string
+  // O que precisa aparecer na foto.
+  dica: string
+  local: 'cto' | 'cliente'
+  // Motivos de "Não foi possível" que fazem sentido para esta foto.
+  motivos: string[]
 }
 
+export const LOCAIS_FOTO: Record<FotoObrigatoria['local'], string> = { cto: 'Na CTO', cliente: 'No cliente' }
+
+const MOTIVOS_CTO = ['CTO sem acesso', 'Sem escada ou altura', 'Chuva', 'Outro']
+const MOTIVOS_EQUIPAMENTO = ['Equipamento do cliente', 'Etiqueta ilegível', 'Outro']
+const MOTIVOS_RECOLHIMENTO = ['Cliente ausente', 'Sem equipamento no local', 'Outro']
+
+// Na ordem do serviço: tudo na CTO primeiro, depois no cliente.
 export const FOTOS_FIBRA: FotoObrigatoria[] = [
-  { chave: 'cto-aberta', rotulo: 'CTO aberta' },
-  { chave: 'cto-fechada', rotulo: 'CTO fechada' },
-  { chave: 'atenuacao-onu', rotulo: 'Atenuação na ONU' },
-  { chave: 'atenuacao-cto', rotulo: 'Atenuação na CTO' },
-  { chave: 'instalacao', rotulo: 'Instalação concluída' },
-  { chave: 'mac-roteador', rotulo: 'MAC do roteador' },
-  { chave: 'mac-onu', rotulo: 'MAC da ONU' },
+  { chave: 'cto-aberta', rotulo: 'CTO aberta', dica: 'Porta usada e o cabo drop ligado', local: 'cto', motivos: MOTIVOS_CTO },
+  { chave: 'atenuacao-cto', rotulo: 'Sinal na CTO', dica: 'Medidor mostrando a leitura na porta', local: 'cto', motivos: MOTIVOS_CTO },
+  { chave: 'cto-fechada', rotulo: 'CTO fechada', dica: 'Tampa fechada e cabo preso', local: 'cto', motivos: MOTIVOS_CTO },
+  {
+    chave: 'atenuacao-onu',
+    rotulo: 'Sinal na ONU',
+    dica: 'Leitura do medidor ou da ONU',
+    local: 'cliente',
+    motivos: ['Sem medidor', 'Outro'],
+  },
+  { chave: 'mac-onu', rotulo: 'Etiqueta da ONU', dica: 'Serial e MAC legíveis', local: 'cliente', motivos: MOTIVOS_EQUIPAMENTO },
+  { chave: 'mac-roteador', rotulo: 'Etiqueta do roteador', dica: 'MAC legível', local: 'cliente', motivos: MOTIVOS_EQUIPAMENTO },
+  {
+    chave: 'instalacao',
+    rotulo: 'Instalação pronta',
+    dica: 'ONU e roteador fixados, com as luzes acesas',
+    local: 'cliente',
+    motivos: ['Cliente não autorizou', 'Outro'],
+  },
 ]
 
 export const FOTOS_DESINSTALACAO: FotoObrigatoria[] = [
-  { chave: 'onu-recolhida', rotulo: 'ONU recolhida (com etiqueta)' },
-  { chave: 'roteador-recolhido', rotulo: 'Roteador recolhido (com etiqueta)' },
+  { chave: 'onu-recolhida', rotulo: 'ONU recolhida', dica: 'Etiqueta legível', local: 'cliente', motivos: MOTIVOS_RECOLHIMENTO },
+  {
+    chave: 'roteador-recolhido',
+    rotulo: 'Roteador recolhido',
+    dica: 'Etiqueta legível',
+    local: 'cliente',
+    motivos: MOTIVOS_RECOLHIMENTO,
+  },
 ]
 
 // Tarefas do Controllr SUPERSONIC (task_pk): 2.2 Instalação Fibra,
@@ -48,8 +80,6 @@ export function fotosDaTarefa(taskPk?: number | null): { fotos: FotoObrigatoria[
   if (taskPk != null && TAREFAS_DESINSTALACAO.includes(taskPk)) return { fotos: FOTOS_DESINSTALACAO, obrigatorias: true }
   return { fotos: FOTOS_FIBRA, obrigatorias: false }
 }
-
-export const MOTIVOS_DISPENSA = ['CTO sem acesso', 'Cliente ausente', 'Equipamento do cliente', 'Sem equipamento no local', 'Outro']
 
 /** Foto obrigatória que o técnico não conseguiu tirar: chave → motivo. */
 export type FotosDispensadas = Record<string, string>
@@ -106,6 +136,48 @@ export function salvarFotos(osPk: number, fotos: FotosAnexadas): void {
     else localStorage.removeItem(PREFIXO_FOTOS + osPk)
   } catch {
     // sem armazenamento: vale só nesta tela
+  }
+}
+
+/**
+ * Miniatura de cada foto tirada (data URL pequena), por OS, para conferir
+ * sem baixar do chamado. Some ao finalizar; as de OS paradas há mais de
+ * MINIATURA_VALIDADE_MS são apagadas na próxima gravação.
+ */
+export type Miniaturas = Record<string, string>
+
+const PREFIXO_MINIATURAS = 'supersonic-tecnico-fotos-mini-'
+const MINIATURA_VALIDADE_MS = 3 * 24 * 60 * 60 * 1000
+
+export function lerMiniaturas(osPk: number): Miniaturas {
+  try {
+    const dados = JSON.parse(localStorage.getItem(PREFIXO_MINIATURAS + osPk) ?? '{}') as { em?: unknown; fotos?: unknown }
+    if (!dados.fotos || typeof dados.fotos !== 'object' || Array.isArray(dados.fotos)) return {}
+    return Object.fromEntries(
+      Object.entries(dados.fotos).filter(([, url]) => typeof url === 'string' && url.startsWith('data:image/')),
+    ) as Miniaturas
+  } catch {
+    return {}
+  }
+}
+
+export function salvarMiniaturas(osPk: number, miniaturas: Miniaturas, agora = Date.now()): void {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const chave = localStorage.key(i)
+      if (!chave?.startsWith(PREFIXO_MINIATURAS) || chave === PREFIXO_MINIATURAS + osPk) continue
+      try {
+        const em = (JSON.parse(localStorage.getItem(chave) ?? '{}') as { em?: unknown }).em
+        if (typeof em !== 'number' || agora - em > MINIATURA_VALIDADE_MS) localStorage.removeItem(chave)
+      } catch {
+        localStorage.removeItem(chave)
+      }
+    }
+    if (Object.keys(miniaturas).length)
+      localStorage.setItem(PREFIXO_MINIATURAS + osPk, JSON.stringify({ em: agora, fotos: miniaturas }))
+    else localStorage.removeItem(PREFIXO_MINIATURAS + osPk)
+  } catch {
+    // sem armazenamento (ou cheio): a miniatura vale só nesta tela
   }
 }
 

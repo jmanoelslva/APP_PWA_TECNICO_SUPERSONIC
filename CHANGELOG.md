@@ -7,6 +7,26 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Próxima foto:** botão na aba Fotos que abre a câmera na próxima foto
+  que falta; ao tirar uma, a câmera já passa para a seguinte.
+- **Miniatura das fotos:** cada foto tirada aparece em miniatura; tocar
+  nela abre a foto para conferir ou refazer.
+- **Sinal da ONU na Auditoria:** ao finalizar a OS, o servidor lê no
+  Controllr o sinal da ONU do cliente (na ONU e na OLT) e registra junto da
+  finalização, como comprovante ao lado da foto.
+
+### Alterado
+
+- **Nomes das fotos na ordem do serviço:** agrupadas em "Na CTO" (CTO
+  aberta, Sinal na CTO, CTO fechada) e "No cliente" (Sinal na ONU, Etiqueta
+  da ONU, Etiqueta do roteador, Instalação pronta), cada uma com a dica do
+  que deve aparecer na foto. Os nomes dos arquivos no chamado não mudaram.
+- **Motivos de "Não foi possível" por tipo de foto:** CTO (sem acesso, sem
+  escada ou altura, chuva), equipamento (do cliente, etiqueta ilegível) e
+  recolhimento (cliente ausente, sem equipamento no local).
+
 ## [1.26.0] - 2026-11-05
 
 ### Adicionado

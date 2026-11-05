@@ -59,11 +59,14 @@ import {
   TEXTO_SINAL_ONU,
 } from '../utils/formatacao'
 import { linkRota, osAtrasada, quandoOs } from '../utils/minhasOs'
-import { comprimirImagem } from '../utils/imagem'
+import { comprimirImagem, gerarMiniatura } from '../utils/imagem'
 import { carimbarImagem, linhasCarimbo, posicaoRapida } from '../utils/carimbo'
 import { EVENTO_FILA, ehFalhaDeRede, enfileirarAnexo, type DetalheEventoFila } from '../utils/filaAnexos'
 import {
-  MOTIVOS_DISPENSA,
+  LOCAIS_FOTO,
+  lerMiniaturas,
+  salvarMiniaturas,
+  type Miniaturas,
   fotosDaTarefa,
   lerDispensas,
   salvarDispensas,
@@ -282,6 +285,14 @@ function DetalheOrdemServicoConteudo() {
   useFecharComVoltar(dispensando !== null, () => setDispensando(null))
   // Foto obrigatória com a câmera aberta (components/CameraFoto.tsx).
   const [fotoOrigem, setFotoOrigem] = useState<FotoObrigatoria | null>(null)
+  // Aberta pelo "Próxima foto": ao tirar uma, a câmera já abre na seguinte.
+  const [emSequencia, setEmSequencia] = useState(false)
+  // Miniaturas das fotos tiradas (salvas no aparelho) e a foto aberta para
+  // conferir; nesta tela, a foto inteira fica em fotosCheiasRef.
+  const [miniaturas, setMiniaturas] = useState<Miniaturas>({})
+  const [fotoVendo, setFotoVendo] = useState<FotoObrigatoria | null>(null)
+  const fotosCheiasRef = useRef<Record<string, string>>({})
+  useFecharComVoltar(fotoVendo !== null, () => setFotoVendo(null))
 
   useEffect(() => () => urlsPreviaRef.current.forEach((url) => URL.revokeObjectURL(url)), [])
 
@@ -289,8 +300,24 @@ function DetalheOrdemServicoConteudo() {
     if (osAtual?.op_pk) {
       setFotos(lerFotos(osAtual.op_pk))
       setDispensas(lerDispensas(osAtual.op_pk))
+      setMiniaturas(lerMiniaturas(osAtual.op_pk))
     }
   }, [osAtual?.op_pk])
+
+  /** Abre a câmera na próxima foto que falta (depois de `depoisDe`, se houver). */
+  // Fotos tiradas agora que ainda podem estar subindo (só ficam marcadas
+  // depois do envio): a sequência não volta para elas.
+  const tiradasRef = useRef<Set<string>>(new Set())
+  function abrirProximaFoto(depoisDe?: string): boolean {
+    const faltando = fotosFaltando(fotosTarefa.fotos, fotos, dispensas).filter(
+      (f) => f.chave !== depoisDe && !tiradasRef.current.has(f.chave),
+    )
+    const indiceAtual = fotosTarefa.fotos.findIndex((f) => f.chave === depoisDe)
+    const proxima =
+      faltando.find((f) => fotosTarefa.fotos.indexOf(f) > indiceAtual) ?? faltando[0] ?? null
+    setFotoOrigem(proxima)
+    return proxima !== null
+  }
 
   // Anexo que estava na fila saiu (ou foi recusado) com a tela aberta.
   // Foto obrigatória recusada volta a faltar.
@@ -484,7 +511,14 @@ function DetalheOrdemServicoConteudo() {
     setExecutandoEtapa(true)
     try {
       const chamada = acaoConfirmando.desfazer ? etapa.desfazer : etapa.marcar
-      await chamada(pk, { opOsPk: osAtual.op_pk, opDesc: observacao })
+      // Ao finalizar, o serial da ONU vai junto: o servidor lê o sinal e
+      // registra na Auditoria (as outras etapas ignoram o campo).
+      const parametros = {
+        opOsPk: osAtual.op_pk,
+        opDesc: observacao,
+        onuSerial: etapa.chave === 'finalizar' && !acaoConfirmando.desfazer ? onuOs?.sn : undefined,
+      }
+      await chamada(pk, parametros)
       toast(
         acaoConfirmando.desfazer ? `Etapa "${etapa.rotulo}" desfeita.` : `Etapa "${etapa.rotulo}" confirmada.`,
         'sucesso',
@@ -496,6 +530,8 @@ function DetalheOrdemServicoConteudo() {
         setFotos({})
         salvarDispensas(osAtual.op_pk, {})
         setDispensas({})
+        salvarMiniaturas(osAtual.op_pk, {})
+        setMiniaturas({})
       }
       setAcaoConfirmando(null)
       setObservacaoEtapa('')
@@ -542,6 +578,19 @@ function DetalheOrdemServicoConteudo() {
       foto && opPk
         ? new File([comprimido], nomeArquivoFoto(foto.chave, numeroOs ?? opPk, comprimido.name), { type: comprimido.type })
         : comprimido
+    // Foto da OS: miniatura no aparelho e a foto inteira para conferir nesta tela.
+    if (foto && opPk) {
+      const anterior = fotosCheiasRef.current[foto.chave]
+      if (anterior) URL.revokeObjectURL(anterior)
+      fotosCheiasRef.current[foto.chave] = URL.createObjectURL(arquivo)
+      urlsPreviaRef.current.push(fotosCheiasRef.current[foto.chave])
+      const miniatura = await gerarMiniatura(arquivo)
+      if (miniatura) {
+        const novas = { ...lerMiniaturas(opPk), [foto.chave]: miniatura }
+        salvarMiniaturas(opPk, novas)
+        setMiniaturas(novas)
+      }
+    }
 
     // Sem sinal: guarda no aparelho e envia quando a internet voltar.
     async function paraFila() {
@@ -824,18 +873,52 @@ function DetalheOrdemServicoConteudo() {
                         {fotosTarefa.fotos.length}
                       </span>
                     </div>
+                    {fotosFaltando(fotosTarefa.fotos, fotos, dispensas).length > 0 && (
+                      <button
+                        type="button"
+                        className="botao botao-primario detalhe-ordem-foto-proxima"
+                        style={{ '--botao-cor': CORES.suporte } as CSSProperties}
+                        disabled={enviandoAnexo}
+                        onClick={() => {
+                          tiradasRef.current.clear()
+                          setEmSequencia(abrirProximaFoto())
+                        }}
+                      >
+                        <MdPhotoCamera size={18} /> Próxima foto: {fotosFaltando(fotosTarefa.fotos, fotos, dispensas)[0].rotulo}
+                      </button>
+                    )}
                     <div className="detalhe-ordem-fotos">
-                      {fotosTarefa.fotos.map((foto) => {
+                      {fotosTarefa.fotos.map((foto, indice) => {
                         const anexada = foto.chave in fotos
                         const naFila = anexada && fotos[foto.chave] !== null
                         const motivo = !anexada ? dispensas[foto.chave] : undefined
+                        const miniatura = anexada ? miniaturas[foto.chave] : undefined
+                        const novoLocal = indice === 0 || fotosTarefa.fotos[indice - 1].local !== foto.local
                         return (
-                          <div key={foto.chave} className="detalhe-ordem-foto">
+                          <div key={foto.chave}>
+                          {novoLocal && new Set(fotosTarefa.fotos.map((f) => f.local)).size > 1 && (
+                            <h3 className="detalhe-ordem-foto-local">{LOCAIS_FOTO[foto.local]}</h3>
+                          )}
+                          <div className="detalhe-ordem-foto">
                             <span className={`detalhe-ordem-foto-texto${anexada ? ' detalhe-ordem-foto-ok' : ''}`}>
-                              {anexada ? <MdCheckCircle size={18} /> : <MdPhotoCamera size={18} />}
+                              {miniatura ? (
+                                <button
+                                  type="button"
+                                  className="detalhe-ordem-foto-mini"
+                                  onClick={() => setFotoVendo(foto)}
+                                  aria-label={`Ver a foto ${foto.rotulo}`}
+                                >
+                                  <img src={miniatura} alt="" />
+                                </button>
+                              ) : anexada ? (
+                                <MdCheckCircle size={18} />
+                              ) : (
+                                <MdPhotoCamera size={18} />
+                              )}
                               <span>
                                 {foto.rotulo}
                                 {naFila && <small> · na fila</small>}
+                                {!anexada && !motivo && <small className="detalhe-ordem-foto-motivo">{foto.dica}</small>}
                                 {motivo && <small className="detalhe-ordem-foto-motivo">Não tirada: {motivo}</small>}
                               </span>
                             </span>
@@ -868,6 +951,7 @@ function DetalheOrdemServicoConteudo() {
                               </button>
                             </div>
                           </div>
+                          </div>
                         )
                       })}
                     </div>
@@ -881,14 +965,47 @@ function DetalheOrdemServicoConteudo() {
 
                 {fotoOrigem && (
                   <CameraFoto
-                    titulo={fotoOrigem.rotulo}
+                    key={fotoOrigem.chave}
+                    titulo={`${fotoOrigem.rotulo} — ${fotoOrigem.dica}`}
                     onFoto={(arquivo) => {
                       const foto = fotoOrigem
-                      setFotoOrigem(null)
+                      tiradasRef.current.add(foto.chave)
+                      if (!emSequencia || !abrirProximaFoto(foto.chave)) {
+                        setFotoOrigem(null)
+                        setEmSequencia(false)
+                      }
                       void enviarArquivo(arquivo, foto)
                     }}
-                    onFechar={() => setFotoOrigem(null)}
+                    onFechar={() => {
+                      setFotoOrigem(null)
+                      setEmSequencia(false)
+                    }}
                   />
+                )}
+
+                {fotoVendo && (
+                  <div className="detalhe-ordem-modal-fundo" onClick={() => setFotoVendo(null)}>
+                    <div className="detalhe-ordem-modal detalhe-ordem-foto-vendo" onClick={(evento) => evento.stopPropagation()}>
+                      <h2>{fotoVendo.rotulo}</h2>
+                      <img src={fotosCheiasRef.current[fotoVendo.chave] ?? miniaturas[fotoVendo.chave]} alt={fotoVendo.rotulo} />
+                      <div className="detalhe-ordem-modal-acoes">
+                        <button type="button" className="botao botao-secundario" onClick={() => setFotoVendo(null)}>
+                          Fechar
+                        </button>
+                        <button
+                          type="button"
+                          className="botao botao-primario"
+                          style={{ '--botao-cor': CORES.suporte } as CSSProperties}
+                          onClick={() => {
+                            setFotoOrigem(fotoVendo)
+                            setFotoVendo(null)
+                          }}
+                        >
+                          Refazer
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {dispensando && (
@@ -897,7 +1014,7 @@ function DetalheOrdemServicoConteudo() {
                       <h2>Sem foto: {dispensando.rotulo}</h2>
                       <p className="detalhe-ordem-modal-texto">Por que não foi possível? O motivo vai na descrição da OS.</p>
                       <div className="detalhe-ordem-motivos">
-                        {MOTIVOS_DISPENSA.map((opcao) => (
+                        {dispensando.motivos.map((opcao) => (
                           <button
                             key={opcao}
                             type="button"

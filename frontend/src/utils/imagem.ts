@@ -45,3 +45,25 @@ export async function comprimirImagem(arquivo: File): Promise<File> {
     return arquivo
   }
 }
+
+/**
+ * Miniatura em data URL (JPEG, maior lado `lado` px) para guardar no
+ * aparelho e mostrar na lista de fotos da OS. null se não der para gerar.
+ */
+export async function gerarMiniatura(arquivo: Blob, lado = 320): Promise<string | null> {
+  if (typeof createImageBitmap !== 'function') return null
+  try {
+    const bitmap = await createImageBitmap(arquivo, { imageOrientation: 'from-image' })
+    const { largura, altura } = dimensoesReduzidas(bitmap.width, bitmap.height, lado)
+    const canvas = document.createElement('canvas')
+    canvas.width = largura
+    canvas.height = altura
+    const contexto = canvas.getContext('2d')
+    if (!contexto) return null
+    contexto.drawImage(bitmap, 0, 0, largura, altura)
+    bitmap.close()
+    return canvas.toDataURL('image/jpeg', 0.6)
+  } catch {
+    return null
+  }
+}
