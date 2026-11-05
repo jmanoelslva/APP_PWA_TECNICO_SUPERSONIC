@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { LuMap, LuX } from 'react-icons/lu'
 import { MdSearch } from 'react-icons/md'
 import {
@@ -184,18 +184,41 @@ export default function MapaCtos() {
       .catch((excecao) => setErro(excecao instanceof ApiError ? excecao.message : 'Não foi possível carregar as CTOs.'))
   }, [])
 
-  const comCoordenada = (dps ?? []).filter(
-    (dp): dp is DpDto & { lat: number; lng: number } => dp.lat != null && dp.lng != null,
+  // Mesma lista (mesma referência) enquanto as CTOs não mudam — uma lista
+  // nova a cada render fazia o mapa apagar e redesenhar todas as CTOs a
+  // cada leitura do GPS.
+  const comCoordenada = useMemo(
+    () => (dps ?? []).filter((dp): dp is DpDto & { lat: number; lng: number } => dp.lat != null && dp.lng != null),
+    [dps],
   )
   const selecionada = comCoordenada.find((dp) => dp.pk === selecionadaPk) ?? null
   // Referência das distâncias: o endereço do cliente buscado; senão, o técnico.
   const referencia = enderecoCliente ?? aoVivo
-  const maisProximas = referencia
-    ? comCoordenada
-        .map((dp) => ({ dp, distanciaM: distanciaMetros(referencia.lat, referencia.lng, dp.lat, dp.lng) }))
-        .sort((a, b) => a.distanciaM - b.distanciaM)
-        .slice(0, QTD_MAIS_PROXIMAS)
-    : []
+  const maisProximas = useMemo(
+    () =>
+      referencia
+        ? comCoordenada
+            .map((dp) => ({ dp, distanciaM: distanciaMetros(referencia.lat, referencia.lng, dp.lat, dp.lng) }))
+            .sort((a, b) => a.distanciaM - b.distanciaM)
+            .slice(0, QTD_MAIS_PROXIMAS)
+        : [],
+    // referencia muda de objeto a cada render do cliente; o que importa é a coordenada
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [comCoordenada, referencia?.lat, referencia?.lng],
+  )
+  // Traçado do endereço do cliente até as CTOs já gravadas nas conexões dele.
+  const ligacoes = useMemo(
+    () =>
+      enderecoCliente && ctosCliente
+        ? ctosCliente.flatMap((cto) => {
+            const dp = comCoordenada.find((item) => item.pk === cto.dpPk)
+            if (!dp) return []
+            const rotulo = `${cto.dpNome}${cto.porta != null ? ` · porta ${cto.porta}` : ''}`
+            return [{ lat: dp.lat, lng: dp.lng, rotulo }]
+          })
+        : [],
+    [enderecoCliente, ctosCliente, comCoordenada],
+  )
   // Centro: a CTO tocada; senão, o cliente buscado; senão, o técnico; sem
   // GPS, a primeira CTO.
   const centro = selecionada
@@ -307,6 +330,7 @@ export default function MapaCtos() {
             minhaLocalizacao={aoVivo}
             precisaoM={aoVivo?.precisaoM ?? null}
             cliente={enderecoCliente}
+            ligacoes={ligacoes}
             onSelecionar={(dp) => setSelecionadaPk(dp.pk)}
             onSemLocalizacao={() => toast('Aguardando a localização do GPS. Verifique se a permissão está liberada.')}
           />

@@ -1,6 +1,6 @@
 // Localização do técnico para sugerir a CTO mais próxima (CardCto.tsx).
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export interface PosicaoAoVivo {
   lat: number
@@ -16,21 +16,48 @@ export interface PosicaoAoVivo {
  */
 export function useLocalizacaoAoVivo(): PosicaoAoVivo | null {
   const [posicao, setPosicao] = useState<PosicaoAoVivo | null>(null)
+  const ultimaRef = useRef<PosicaoAoVivo | null>(null)
   useEffect(() => {
     if (!navigator.geolocation) return
     const watchId = navigator.geolocation.watchPosition(
-      (leitura) =>
-        setPosicao({
+      (leitura) => {
+        const nova = {
           lat: leitura.coords.latitude,
           lng: leitura.coords.longitude,
           precisaoM: leitura.coords.accuracy,
-        }),
+        }
+        // Parado, o GPS manda leituras quase iguais a cada segundo; cada uma
+        // re-renderizava a tela e o mapa à toa. Só atualiza quando muda de fato.
+        if (!mudouOSuficiente(ultimaRef.current, nova)) return
+        ultimaRef.current = nova
+        setPosicao(nova)
+      },
       () => {},
-      { enableHighAccuracy: true, maximumAge: 5000 },
+      // maximumAge 0: sempre leitura nova do GPS, nunca uma guardada.
+      { enableHighAccuracy: true, maximumAge: 0 },
     )
     return () => navigator.geolocation.clearWatch(watchId)
   }, [])
   return posicao
+}
+
+// Limiares da atualização ao vivo. Precisão vem primeiro: qualquer leitura
+// mais precisa (1 m ou mais) é mostrada na hora; movimento de 3 m também.
+// Só o tremor do GPS parado (leituras quase iguais, sem ganho de precisão)
+// é ignorado. Piora da precisão aparece a partir de 5 m, para o círculo
+// não mentir quando o sinal cai.
+export const MOVIMENTO_MINIMO_M = 3
+export const MELHORA_PRECISAO_MINIMA_M = 1
+export const PIORA_PRECISAO_MINIMA_M = 5
+
+export function mudouOSuficiente(anterior: PosicaoAoVivo | null, nova: PosicaoAoVivo): boolean {
+  if (!anterior) return true
+  const ganho = anterior.precisaoM - nova.precisaoM
+  return (
+    ganho >= MELHORA_PRECISAO_MINIMA_M ||
+    -ganho >= PIORA_PRECISAO_MINIMA_M ||
+    distanciaMetros(anterior.lat, anterior.lng, nova.lat, nova.lng) >= MOVIMENTO_MINIMO_M
+  )
 }
 
 // Fórmula de Haversine — distância em linha reta (metros) entre a

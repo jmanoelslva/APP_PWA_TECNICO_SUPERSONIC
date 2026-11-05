@@ -7,6 +7,23 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Traçado do cliente até a CTO no Mapa de CTOs:** depois de buscar um
+  cliente, uma linha tracejada liga o endereço dele à CTO gravada na conexão,
+  com o nome, a porta e a distância em linha reta; o mapa enquadra os dois
+  pontos.
+
+### Alterado
+
+- **Mapa mais fluido no zoom e ao arrastar:** as CTOs não são mais
+  redesenhadas a cada leitura do GPS, o "Você" e o círculo de precisão só
+  mudam de lugar, e a posição ao vivo ignora só o tremor do GPS parado
+  (Mapa de CTOs e bloco CTO da Conexão).
+- **Localização mais precisa:** sempre leitura nova do GPS (sem posição
+  guardada); qualquer melhora de 1 m na precisão aparece na hora, assim
+  como movimentos a partir de 3 m.
+
 ## [1.27.0] - 2026-11-05
 
 ### Adicionado
