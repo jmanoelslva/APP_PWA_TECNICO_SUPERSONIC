@@ -514,6 +514,8 @@ function DetalheOrdemServicoConteudo() {
 
   async function enviarArquivo(original: File, foto?: FotoObrigatoria) {
     const opPk = osAtual?.op_pk
+    // Número que a tela mostra ("OS 2026…"); o op_pk é só o id interno.
+    const numeroOs = osAtual?.op_number || opPk
     const id = Date.now()
     const previa =
       original.type.startsWith('image/') && !original.type.startsWith('image/svg') ? URL.createObjectURL(original) : null
@@ -526,12 +528,12 @@ function DetalheOrdemServicoConteudo() {
     // foto da OS também ganha o carimbo de OS, data/hora e GPS.
     const comprimido =
       foto && opPk
-        ? await carimbarImagem(original, linhasCarimbo(opPk, new Date(), await posicaoRapida()))
+        ? await carimbarImagem(original, linhasCarimbo(numeroOs ?? opPk, new Date(), await posicaoRapida()))
         : await comprimirImagem(original)
     // Foto obrigatória sobe com o nome da etapa, para achar no chamado.
     const arquivo =
       foto && opPk
-        ? new File([comprimido], nomeArquivoFoto(foto.chave, opPk, comprimido.name), { type: comprimido.type })
+        ? new File([comprimido], nomeArquivoFoto(foto.chave, numeroOs ?? opPk, comprimido.name), { type: comprimido.type })
         : comprimido
 
     // Sem sinal: guarda no aparelho e envia quando a internet voltar.

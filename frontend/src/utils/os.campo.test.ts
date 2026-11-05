@@ -102,6 +102,8 @@ describe('fotos obrigatórias', () => {
     expect(linha1).toMatch(/^OS 123 · 05\/11\/2026,? 09:07$/)
     expect(linha2).toBe('-10.912346, -37.065432')
     expect(linhasCarimbo(123, quando, null)).toHaveLength(1)
+    expect(linhasCarimbo('20261105000013', quando)[0]).toMatch(/^OS 20261105000013 · /)
+    expect(nomeArquivoFoto('cto-aberta', '20261105000013', 'x.jpg')).toBe('cto-aberta-20261105000013.jpg')
   })
 
   it('guarda por OS, inclusive o id da fila', () => {

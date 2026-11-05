@@ -13,10 +13,13 @@ export interface Posicao {
   lng: number
 }
 
-/** Linhas do carimbo: OS e data/hora; depois a posição, quando houver. */
-export function linhasCarimbo(osPk: number, quando: Date, posicao?: Posicao | null): string[] {
+/**
+ * Linhas do carimbo: OS e data/hora; depois a posição, quando houver.
+ * `numeroOs` é o número que a tela mostra (op_number), não o id interno.
+ */
+export function linhasCarimbo(numeroOs: string | number, quando: Date, posicao?: Posicao | null): string[] {
   const data = quando.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
-  const linhas = [`OS ${osPk} · ${data}`]
+  const linhas = [`OS ${numeroOs} · ${data}`]
   if (posicao) linhas.push(`${posicao.lat.toFixed(6)}, ${posicao.lng.toFixed(6)}`)
   return linhas
 }

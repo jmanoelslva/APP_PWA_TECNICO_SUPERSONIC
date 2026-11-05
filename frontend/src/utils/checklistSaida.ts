@@ -118,8 +118,8 @@ export function fotosFaltando(
   return lista.filter((foto) => !(foto.chave in fotos) && !dispensas[foto.chave])
 }
 
-/** Nome do arquivo no chamado: etapa + OS, com a extensão original. */
-export function nomeArquivoFoto(chave: string, osPk: number, nomeOriginal: string): string {
+/** Nome do arquivo no chamado: etapa + número da OS, com a extensão original. */
+export function nomeArquivoFoto(chave: string, numeroOs: string | number, nomeOriginal: string): string {
   const extensao = /\.[a-z0-9]{2,5}$/i.exec(nomeOriginal)?.[0].toLowerCase() ?? '.jpg'
-  return `${chave}-${osPk}${extensao}`
+  return `${chave}-${numeroOs}${extensao}`
 }

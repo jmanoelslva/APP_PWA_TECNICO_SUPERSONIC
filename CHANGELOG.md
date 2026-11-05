@@ -7,6 +7,17 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não lançado]
 
+### Alterado
+
+- **Seleção de texto:** em todo o app, o texto não seleciona ao segurar; só os
+  campos de entrada de dados (busca, descrição, login etc.) continuam
+  selecionáveis.
+
+### Corrigido
+
+- **Número da OS no carimbo da foto:** o carimbo e o nome do arquivo usam o
+  número que a tela mostra ("OS 2026…"), não o id interno da OS.
+
 ## [1.23.0] - 2026-11-05
 
 ### Adicionado
