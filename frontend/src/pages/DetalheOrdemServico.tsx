@@ -78,6 +78,7 @@ import {
   type FotosAnexadas,
 } from '../utils/checklistSaida'
 import './DetalheOrdemServico.css'
+import { useFecharComVoltar } from '../hooks/useFecharComVoltar'
 
 interface AnexoEnviado {
   id: number
@@ -273,6 +274,12 @@ function DetalheOrdemServicoConteudo() {
   const [motivoDispensa, setMotivoDispensa] = useState('')
   const [complementoDispensa, setComplementoDispensa] = useState('')
   const fotosTarefa = fotosDaTarefa(osAtual?.task_pk)
+  // "Voltar" do celular fecha a confirmação de etapa e a janela de motivo.
+  useFecharComVoltar(acaoConfirmando !== null, () => {
+    setAcaoConfirmando(null)
+    setObservacaoEtapa('')
+  })
+  useFecharComVoltar(dispensando !== null, () => setDispensando(null))
   // Foto obrigatória com a câmera aberta (components/CameraFoto.tsx).
   const [fotoOrigem, setFotoOrigem] = useState<FotoObrigatoria | null>(null)
 

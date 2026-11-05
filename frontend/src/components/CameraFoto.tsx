@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { MdCameraswitch, MdCheck, MdClose, MdPhotoCamera, MdPhotoLibrary, MdReplay } from 'react-icons/md'
 import './CameraFoto.css'
+import { useFecharComVoltar } from '../hooks/useFecharComVoltar'
 
 interface Props {
   titulo: string
@@ -20,6 +21,8 @@ type Lado = 'environment' | 'user'
  * fotos (como no WhatsApp) só existem em app nativo.
  */
 export default function CameraFoto({ titulo, onFoto, onFechar }: Props) {
+  // "Voltar" do celular fecha a janela.
+  useFecharComVoltar(true, onFechar)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const inputGaleriaRef = useRef<HTMLInputElement>(null)
