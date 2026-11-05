@@ -7,6 +7,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não lançado]
 
+## [1.23.0] - 2026-11-05
+
 ### Adicionado
 
 - **Fotos obrigatórias para finalizar a OS, conforme a Tarefa:** instalação
@@ -15,7 +17,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   MAC da ONU); desinstalação exige a ONU e o roteador recolhidos, com etiqueta.
   As demais tarefas (inclusive instalação por rádio) mostram as fotos como
   opcionais. Sem as obrigatórias, "Finalizar" avisa o que falta e abre a aba
-  Checklist. Cada foto sobe para o chamado com o nome da etapa (ex.:
+  Fotos. Cada foto sobe para o chamado com o nome da etapa (ex.:
   `cto-aberta-123.jpg`); sem sinal, vai para a fila e já conta, mas volta a
   faltar se o servidor recusar.
 - **"Não foi possível" em cada foto obrigatória:** dispensa só aquela foto,
@@ -25,11 +27,6 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   câmera; sem câmera, oferece a câmera do telefone e a galeria.
 - **Carimbo nas fotos da OS:** número da OS, data e hora e posição do GPS no
   rodapé da imagem.
-
-### Corrigido
-
-- **Aviso cobrindo o botão de etapa:** com a barra de ação no rodapé da OS, o
-  aviso aparece acima dela.
 
 ### Alterado
 
@@ -42,6 +39,11 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Checklist de saída (caixas de marcar):** ficou redundante com as fotos
   obrigatórias. A leitura do sinal da ONU continua entrando pronta na
   descrição da finalização.
+
+### Corrigido
+
+- **Aviso cobrindo o botão de etapa:** com a barra de ação no rodapé da OS, o
+  aviso aparece acima dela.
 
 ## [1.22.0] - 2026-11-04
 
@@ -795,6 +797,7 @@ aplicativo.
 - Link de Contrato na tela de ONU.
 
 [não lançado]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.22.0...HEAD
+[1.23.0]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.20.0...v1.22.0
 [1.20.0]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.18.1...v1.20.0
 [1.18.1]: https://github.com/jmanoelslva/APP_PWA_TECNICO_SUPERSONIC/compare/v1.18.0...v1.18.1

@@ -28,6 +28,7 @@ ATUALIZAR = "sudo bash /opt/supersonic-tecnico/deploy/install.sh"
 TITULOS = {
     "1.20.0": "Busca geral, Conexão em abas, Configurações e interface para campo",
     "1.22.0": "Jeito de app nativo, checklist de saída, abas e busca corrigida",
+    "1.23.0": "Fotos obrigatórias por Tarefa, câmera no app e carimbo nas fotos",
     "1.0.0": "Primeira versão estável",
     "1.4.0": "Sessão do Controllr pelo cookie do login e detecção de sessão encerrada",
     "1.5.0": "Motivo e data/hora da última queda da ONU",
