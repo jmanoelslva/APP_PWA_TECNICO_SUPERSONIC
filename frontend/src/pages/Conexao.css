@@ -79,9 +79,9 @@
   border: none;
   background: var(--cor-fundo);
   color: var(--cor-texto-secundario);
-  border-radius: 8px;
-  width: 32px;
-  height: 32px;
+  border-radius: 10px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -137,13 +137,13 @@
 .conexao-input {
   flex: 1;
   min-width: 0;
-  height: 36px;
-  padding: 0 10px;
-  border-radius: 8px;
+  height: 48px;
+  padding: 0 12px;
+  border-radius: 12px;
   border: 1.5px solid var(--cor-borda-suave);
   background: var(--cor-fundo);
   color: var(--cor-texto);
-  font-size: 14px;
+  font-size: 16px;
   font-family: var(--fonte-mono);
 }
 
@@ -180,7 +180,7 @@
   margin: 4px 0 0;
   padding: 4px;
   list-style: none;
-  max-height: 220px;
+  max-height: 50vh;
   overflow-y: auto;
   background: var(--cor-superficie);
   border: 1.5px solid var(--cor-borda);
@@ -191,14 +191,28 @@
 .conexao-combobox-lista li button {
   display: block;
   width: 100%;
+  min-height: 48px;
   text-align: left;
-  padding: 8px 10px;
+  padding: 12px 10px;
   border: none;
   background: transparent;
   color: var(--cor-texto);
-  font-size: 13px;
-  border-radius: 6px;
+  font-size: 15px;
+  border-radius: 8px;
   cursor: pointer;
+}
+
+/* Item com ícone (busca de PPPoE): ícone + duas linhas. */
+.conexao-combobox-lista li button:has(> svg) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+}
+
+.conexao-combobox-lista li button svg {
+  flex-shrink: 0;
+  color: var(--cor-texto-terciario);
 }
 
 @media (hover: hover) {
@@ -208,20 +222,20 @@
 }
 
 .conexao-combobox-distancia {
-  color: var(--cor-texto-terciario);
-  font-size: 11px;
+  color: var(--cor-texto-secundario);
+  font-size: 13px;
 }
 
 .conexao-combobox-precisao {
   display: block;
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--cor-texto-terciario);
 }
 
 .conexao-combobox-vazio {
-  padding: 8px 10px;
-  font-size: 12px;
+  padding: 12px 10px;
+  font-size: 14px;
   color: var(--cor-texto-terciario);
 }
 
@@ -375,13 +389,13 @@
 .conexao-busca-campo input {
   flex: 1;
   min-width: 0;
-  height: 44px;
+  height: 48px;
   padding: 0 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1.5px solid var(--cor-borda);
   background: var(--cor-fundo);
   color: var(--cor-texto);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .conexao-busca-campo input:focus {
@@ -409,3 +423,92 @@
   color: var(--cor-texto-secundario);
 }
 
+
+/* Portas da CTO (PortasCto): livres para tocar, ocupadas com o PPPoE. */
+.portas-cto {
+  margin: 4px 0 12px;
+}
+
+.portas-cto-titulo {
+  display: block;
+  margin: 10px 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cor-texto-secundario);
+}
+
+.portas-cto-livres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.portas-cto-livres button {
+  min-width: 48px;
+  height: 48px;
+  padding: 0 10px;
+  border: 1.5px solid var(--cor-borda);
+  border-radius: 12px;
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  font-family: var(--fonte-mono);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.portas-cto-livres button.escolhida {
+  border-color: var(--cor-conexao);
+  background: color-mix(in srgb, var(--cor-conexao) 14%, var(--cor-superficie));
+}
+
+.portas-cto-ocupadas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.portas-cto-ocupadas li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 4px 0;
+  font-size: 15px;
+}
+
+.portas-cto-ocupadas li + li {
+  border-top: 1px solid var(--cor-borda-suave);
+}
+
+.portas-cto-numero {
+  flex-shrink: 0;
+  min-width: 36px;
+  text-align: center;
+  font-family: var(--fonte-mono);
+  font-weight: 700;
+  color: var(--cor-texto-secundario);
+}
+
+.portas-cto-ocupadas li.propria .portas-cto-numero {
+  color: var(--cor-conexao);
+}
+
+.portas-cto-ocupadas li.repetida .portas-cto-numero {
+  color: var(--cor-erro);
+}
+
+.portas-cto-aviso {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--cor-erro) 12%, transparent);
+  font-size: 14px;
+  color: var(--cor-texto);
+}
+
+.portas-cto-nota {
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--cor-texto-secundario);
+}

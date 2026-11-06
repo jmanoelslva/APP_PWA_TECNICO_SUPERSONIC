@@ -7,6 +7,23 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não lançado]
 
+## [1.29.0] - 2026-11-06
+
+### Adicionado
+
+- **Pronto para fechar (OS › Fotos):** confere ONU registrada para o cliente, sinal da ONU e da OLT na faixa, PPPoE conectado, CTO e porta gravadas e coordenada do endereço; o que falta vem com atalho para a ONU, a Conexão ou a edição do endereço.
+- **Portas da CTO (Conexão › CTO):** portas livres para tocar e preencher, ocupadas com PPPoE, cliente e online/offline, aviso quando a porta digitada já é de outra conexão e quando há porta repetida ou conexão sem porta. Contrato cancelado ou desativado não ocupa porta.
+- **Quedas recentes:** no cliente e na OS, selo "Caiu N vezes em 7 dias" (a partir de 3), com quantas foram por perda de link (fibra ou energia).
+
+### Alterado
+
+- **Registrar cliente na ONU:** busca por nome, CPF/CNPJ, contrato ou login PPPoE; atalho com o PPPoE já configurado na ONU; achado pelo PPPoE ou com uma só conexão, vai direto para a confirmação; mostra serial, OLT e posição da ONU, passos (Cliente, Conexão, Confirmar), contrato e CTO de cada conexão, resumo antes de associar e aviso quando o PPPoE escolhido difere do configurado na ONU; campos e itens com toque de 48px.
+- **Busca de ONU:** itens em duas linhas com ícone; a ONU mostra o cliente (ou "Sem cliente"), a OLT e a posição, e o PPPoE mostra cliente, contrato e CTO.
+- **Busca do Início:** resultados em duas linhas com ícone por tipo (ONU, PPPoE, cliente), toque de 56px, letra de 15px e lista mais alta; a ONU mostra cliente, OLT e posição, o PPPoE mostra cliente, contrato e CTO, e o cliente mostra CPF/CNPJ e quantas conexões tem.
+- **Teclado:** escolher uma ONU na busca da tela ONU, um cliente no Mapa de CTOs ou uma CTO na Conexão fecha o teclado; no Mapa de CTOs, o cliente aparece em duas linhas com ícone.
+- **Busca de PPPoE na Conexão:** itens com cliente, contrato e CTO.
+- **Toque de 48px:** campos e botões dos cartões da Conexão, lista de CTOs, Editar endereço, abas, ações de contato, Clientes Offline, Auditoria, OS do dia e visualizador de imagem do chamado; campos com letra de 16px.
+
 ## [1.28.0] - 2026-11-05
 
 ### Adicionado
