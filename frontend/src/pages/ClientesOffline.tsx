@@ -1,24 +1,24 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { MdSearch } from 'react-icons/md'
-import { LuCable, LuMap, LuNetwork, LuPhone, LuSearchX, LuTriangleAlert, LuUser, LuWifiOff, LuX } from 'react-icons/lu'
-import { ApiError, buscarDetalheCliente, listarCpeOffline, listarDps, type CpeDto, type DpDto } from '../api/client'
+import { LuCable, LuMap, LuPhone, LuSearch, LuSearchX, LuTriangleAlert, LuUser, LuWifi, LuWifiOff, LuX } from 'react-icons/lu'
+import { ApiError, listarCpeOffline, listarDps, type CpeDto, type DpDto } from '../api/client'
 import CabecalhoTela from '../components/CabecalhoTela'
+import LidoHa from '../components/LidoHa'
+import FiltroSegmentado, { type OpcaoSegmentada } from '../components/FiltroSegmentado'
 import EstadoVazio from '../components/EstadoVazio'
 import EstadoErro from '../components/EstadoErro'
 import PullToRefresh from '../components/PullToRefresh'
 import Skeleton from '../components/Skeleton'
 import { useToast } from '../components/Toast/useToast'
 import { CORES } from '../utils/cores'
-import { formatarDataHora, linkLigar } from '../utils/formatacao'
-import { primeiroTelefone } from '../utils/minhasOs'
+import { linkLigarDoCliente } from '../utils/contato'
+import { formatarDataHora } from '../utils/formatacao'
 import {
   ORDEM_GRUPOS,
   ROTULO_GRUPO,
   ctosComVariosOffline,
   grupoOffline,
   instanteDaQueda,
-  regiaoDaCto,
   tempoOffline,
   type GrupoOffline,
 } from '../utils/offline'
@@ -34,7 +34,6 @@ interface ItemOffline {
   cpe: CpeDto
   instante: number | null
   grupo: GrupoOffline
-  regiao: string
 }
 
 function normalizar(valor: string): string {
@@ -51,10 +50,6 @@ function bateBusca(cpe: CpeDto, termo: string): boolean {
   return alvo.some((v) => v.includes(termo))
 }
 
-function horaAgora(): string {
-  return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-}
-
 export default function ClientesOffline() {
   const { toast } = useToast()
   const [cpes, setCpes] = useState<CpeDto[]>([])
@@ -62,13 +57,12 @@ export default function ClientesOffline() {
   const [carregandoMais, setCarregandoMais] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
-  const [atualizadoAs, setAtualizadoAs] = useState<string | null>(null)
+  const [atualizadoEm, setAtualizadoEm] = useState<number | null>(null)
   const [busca, setBusca] = useState('')
   const [periodo, setPeriodo] = useState<Periodo>('todos')
-  const [regiao, setRegiao] = useState('')
   const [ctoFiltro, setCtoFiltro] = useState<{ pk: number; nome: string } | null>(null)
-  // CTOs do Controllr: setor (região) e cor de cada uma. Complemento — se
-  // falhar, a região sai da sigla do nome da CTO.
+  // CTOs do Controllr: cor de cada uma (bolinha no cartão e no alerta).
+  // Complemento — se falhar, usa a cor padrão.
   const [dpsPorPk, setDpsPorPk] = useState<Map<number, DpDto>>(new Map())
   const [ligandoPk, setLigandoPk] = useState<number | null>(null)
 
@@ -93,7 +87,7 @@ export default function ClientesOffline() {
       const resposta = await listarCpeOffline({ start: 0, limit: TAMANHO_PAGINA })
       setCpes(resposta.results)
       setTotal(resposta.total)
-      setAtualizadoAs(horaAgora())
+      setAtualizadoEm(Date.now())
     } catch (excecao) {
       setErro(excecao instanceof ApiError ? excecao.message : 'Não foi possível carregar os clientes offline.')
     } finally {
@@ -120,8 +114,7 @@ export default function ClientesOffline() {
     if (!cpe.client_pk || ligandoPk != null) return
     setLigandoPk(cpe.client_pk)
     try {
-      const detalhe = await buscarDetalheCliente(cpe.client_pk)
-      const link = linkLigar(primeiroTelefone(detalhe.telefones, detalhe.cliente.client_phones))
+      const link = await linkLigarDoCliente(cpe.client_pk)
       if (link) window.location.href = link
       else toast('Cliente sem telefone cadastrado.')
     } catch (excecao) {
@@ -131,38 +124,29 @@ export default function ClientesOffline() {
     }
   }
 
-  // Todos os itens com grupo e região, do que caiu mais recente para o mais
-  // antigo; "nunca conectou" no fim.
+  // Todos os itens com grupo, do que caiu mais recente para o mais antigo;
+  // "nunca conectou" no fim.
   const itens = useMemo<ItemOffline[]>(() => {
     const agora = Date.now()
     return cpes
       .map((cpe) => {
         const instante = instanteDaQueda(cpe)
-        const dp = cpe.dp_pk != null ? dpsPorPk.get(cpe.dp_pk) : undefined
-        return { cpe, instante, grupo: grupoOffline(instante, agora), regiao: regiaoDaCto(cpe.dp_name, dp?.setor) }
+        return { cpe, instante, grupo: grupoOffline(instante, agora) }
       })
       .sort((a, b) => (b.instante ?? -Infinity) - (a.instante ?? -Infinity))
-  }, [cpes, dpsPorPk])
+  }, [cpes])
 
   const ctosVarios = useMemo(() => ctosComVariosOffline(cpes), [cpes])
   const offlinePorCto = useMemo(() => new Map(ctosVarios.map((cto) => [cto.dpPk, cto.quantidade])), [ctosVarios])
-  const regioes = useMemo(() => {
-    const contagem = new Map<string, number>()
-    for (const item of itens) contagem.set(item.regiao, (contagem.get(item.regiao) ?? 0) + 1)
-    return [...contagem.entries()].sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))
-  }, [itens])
 
   const termoBusca = normalizar(busca.trim())
-  // Busca, região e CTO valem para tudo; o período só escolhe o grupo.
+  // Busca e CTO valem para tudo; o período só escolhe o grupo.
   const filtrados = useMemo(
     () =>
       itens.filter(
-        (item) =>
-          (!termoBusca || bateBusca(item.cpe, termoBusca)) &&
-          (!regiao || item.regiao === regiao) &&
-          (!ctoFiltro || item.cpe.dp_pk === ctoFiltro.pk),
+        (item) => (!termoBusca || bateBusca(item.cpe, termoBusca)) && (!ctoFiltro || item.cpe.dp_pk === ctoFiltro.pk),
       ),
-    [itens, termoBusca, regiao, ctoFiltro],
+    [itens, termoBusca, ctoFiltro],
   )
   const porGrupo = useMemo(() => {
     const mapa = new Map<GrupoOffline, ItemOffline[]>(ORDEM_GRUPOS.map((g) => [g, []]))
@@ -170,21 +154,20 @@ export default function ClientesOffline() {
     return mapa
   }, [filtrados])
 
-  const abasPeriodo: { chave: Periodo; rotulo: string }[] = [
-    { chave: 'todos', rotulo: `Todos (${filtrados.length})` },
-    { chave: 'hoje', rotulo: `Hoje (${porGrupo.get('hoje')!.length})` },
-    { chave: 'semana', rotulo: `1 a 7 dias (${porGrupo.get('semana')!.length})` },
-    { chave: 'antigos', rotulo: `+7 dias (${porGrupo.get('antigos')!.length})` },
-    { chave: 'nunca', rotulo: `Nunca (${porGrupo.get('nunca')!.length})` },
+  const abasPeriodo: OpcaoSegmentada<Periodo>[] = [
+    { chave: 'todos', rotulo: 'Todos', quantidade: filtrados.length },
+    { chave: 'hoje', rotulo: 'Hoje', quantidade: porGrupo.get('hoje')!.length, alerta: true },
+    { chave: 'semana', rotulo: '1–7 dias', quantidade: porGrupo.get('semana')!.length },
+    { chave: 'antigos', rotulo: '+7 dias', quantidade: porGrupo.get('antigos')!.length },
+    { chave: 'nunca', rotulo: 'Nunca', quantidade: porGrupo.get('nunca')!.length },
   ]
   const gruposVisiveis = periodo === 'todos' ? ORDEM_GRUPOS : [periodo]
   const visiveis = gruposVisiveis.reduce((soma, g) => soma + porGrupo.get(g)!.length, 0)
   const aindaCarregandoLista = cpes.length < total
-  const filtroAtivo = Boolean(termoBusca || regiao || ctoFiltro || periodo !== 'todos')
+  const filtroAtivo = Boolean(termoBusca || ctoFiltro || periodo !== 'todos')
 
   function limparFiltros() {
     setBusca('')
-    setRegiao('')
     setCtoFiltro(null)
     setPeriodo('todos')
   }
@@ -218,13 +201,14 @@ export default function ClientesOffline() {
           {cpe.username && ` · ${cpe.username}`}
         </p>
         {/* Uma linha só: ícone em cima, rótulo curto embaixo, colunas iguais. */}
-        <div className="clientes-offline-acoes">
-          <Link to={`/conexao?cpe_pk=${cpe.pk}`} style={{ '--acao-cor': CORES.conexao } as CSSProperties} viewTransition>
-            <LuNetwork size={20} aria-hidden="true" />
+        <div className="grade-acoes">
+          <Link className="grade-acao" to={`/conexao?cpe_pk=${cpe.pk}`} style={{ '--acao-cor': CORES.conexao } as CSSProperties} viewTransition>
+            <LuWifi size={20} aria-hidden="true" />
             Conexão
           </Link>
           {cpe.username ? (
             <Link
+              className="grade-acao"
               to={`/onu?username=${encodeURIComponent(cpe.username)}`}
               style={{ '--acao-cor': CORES.onu } as CSSProperties}
               viewTransition
@@ -233,19 +217,20 @@ export default function ClientesOffline() {
               ONU
             </Link>
           ) : (
-            <span className="desabilitada" aria-hidden="true">
+            <span className="grade-acao desabilitada" aria-hidden="true">
               <LuCable size={20} />
               ONU
             </span>
           )}
           {cpe.client_pk ? (
             <>
-              <Link to={`/mapa?cliente=${cpe.client_pk}`} style={{ '--acao-cor': CORES.endereco } as CSSProperties} viewTransition>
+              <Link className="grade-acao" to={`/mapa?cliente=${cpe.client_pk}`} style={{ '--acao-cor': CORES.endereco } as CSSProperties} viewTransition>
                 <LuMap size={20} aria-hidden="true" />
                 Mapa
               </Link>
               <button
                 type="button"
+                className="grade-acao"
                 style={{ '--acao-cor': CORES.sucesso } as CSSProperties}
                 onClick={() => void ligar(cpe)}
                 aria-busy={ligandoPk === cpe.client_pk}
@@ -254,7 +239,7 @@ export default function ClientesOffline() {
                 <LuPhone size={20} aria-hidden="true" />
                 Ligar
               </button>
-              <Link to={`/clientes/${cpe.client_pk}`} style={{ '--acao-cor': CORES.cliente } as CSSProperties} viewTransition>
+              <Link className="grade-acao" to={`/clientes/${cpe.client_pk}`} style={{ '--acao-cor': CORES.cliente } as CSSProperties} viewTransition>
                 <LuUser size={20} aria-hidden="true" />
                 Cliente
               </Link>
@@ -277,7 +262,7 @@ export default function ClientesOffline() {
 
         {!carregando && (cpes.length > 0 || erro == null) && (
           <div className="clientes-offline-busca">
-            <MdSearch size={18} />
+            <LuSearch size={20} />
             <input
               autoCapitalize="none"
               autoCorrect="off"
@@ -313,7 +298,12 @@ export default function ClientesOffline() {
           <>
             <p className="clientes-offline-total">
               {total} cliente(s) offline
-              {atualizadoAs && <span> · Atualizado às {atualizadoAs}</span>}
+              {atualizadoEm != null && (
+                <span>
+                  {' · '}
+                  <LidoHa momento={atualizadoEm} prefixo="Atualizado" />
+                </span>
+              )}
               {aindaCarregandoLista && <span> · carregando mais…</span>}
             </p>
 
@@ -338,41 +328,15 @@ export default function ClientesOffline() {
               </section>
             )}
 
+            <FiltroSegmentado opcoes={abasPeriodo} ativa={periodo} onEscolher={setPeriodo} rotulo="Tempo offline" />
+
             {ctoFiltro && (
-              <button type="button" className="clientes-offline-filtro-cto" onClick={() => setCtoFiltro(null)}>
-                CTO {ctoFiltro.nome} <LuX size={16} aria-label="Tirar o filtro da CTO" />
-              </button>
-            )}
-
-            {/* Botões que quebram linha em tela estreita, sem cortar o texto. */}
-            <div className="clientes-offline-periodos" role="group" aria-label="Tempo offline">
-              {abasPeriodo.map((aba) => (
-                <button
-                  key={aba.chave}
-                  type="button"
-                  aria-pressed={periodo === aba.chave}
-                  className={periodo === aba.chave ? 'ativo' : undefined}
-                  onClick={() => setPeriodo(aba.chave)}
-                >
-                  {aba.rotulo}
+              <div className="clientes-offline-filtros-linha">
+                <button type="button" className="clientes-offline-filtro-cto" onClick={() => setCtoFiltro(null)}>
+                  <span>{ctoFiltro.nome}</span>
+                  <LuX size={16} aria-label="Tirar o filtro da CTO" />
                 </button>
-              ))}
-            </div>
-
-            {regioes.length > 1 && (
-              <select
-                className="campo clientes-offline-regiao"
-                value={regiao}
-                onChange={(e) => setRegiao(e.target.value)}
-                aria-label="Região"
-              >
-                <option value="">Todas as regiões</option>
-                {regioes.map(([nome, quantidade]) => (
-                  <option key={nome} value={nome}>
-                    {nome} ({quantidade})
-                  </option>
-                ))}
-              </select>
+              </div>
             )}
 
             {visiveis === 0 && (

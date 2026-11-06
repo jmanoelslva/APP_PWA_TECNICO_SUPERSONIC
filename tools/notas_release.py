@@ -35,6 +35,7 @@ TITULOS = {
     "1.25.0": "Auditoria completa: CTO, observação, etapas da OS, liberação financeira e login",
     "1.26.0": "Mapa de CTOs com busca de cliente e portas livres",
     "1.27.0": "Fotos da OS na ordem do serviço, sinal da ONU na Auditoria e CTO do cliente no mapa",
+    "1.28.0": "Clientes Offline como diagnóstico, traçado até a CTO e app padronizado",
     "1.24.0": "Mensagem e anexo no chamado, atalhos sem texto cortado e botões sem degradê",
     "1.0.0": "Primeira versão estável",
     "1.4.0": "Sessão do Controllr pelo cookie do login e detecção de sessão encerrada",
@@ -61,6 +62,7 @@ SECOES = {
 
 # O que mais o técnico precisa saber ao atualizar para a versão.
 EXTRA_ATUALIZAR = {
+    "1.28.0": "Esta versão muda o próprio instalador: rode o comando **duas vezes** (a primeira atualiza o código; a segunda aplica a chave das sessões e o novo serviço).",
     "1.0.0": "Primeira instalação: clone o repositório e rode `sudo bash deploy/install.sh`.",
 }
 

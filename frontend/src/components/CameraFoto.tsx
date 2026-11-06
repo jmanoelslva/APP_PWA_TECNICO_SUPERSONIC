@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { MdCameraswitch, MdCheck, MdClose, MdPhotoCamera, MdPhotoLibrary, MdReplay } from 'react-icons/md'
+import { LuCamera, LuCheck, LuImages, LuRotateCw, LuSwitchCamera, LuX } from 'react-icons/lu'
 import './CameraFoto.css'
 import { useFecharComVoltar } from '../hooks/useFecharComVoltar'
 
@@ -112,7 +112,7 @@ export default function CameraFoto({ titulo, onFoto, onFechar }: Props) {
       <div className="camera-foto-topo">
         <span>{titulo}</span>
         <button type="button" className="camera-foto-icone" onClick={onFechar} aria-label="Fechar câmera">
-          <MdClose size={24} />
+          <LuX size={24} />
         </button>
       </div>
 
@@ -120,10 +120,10 @@ export default function CameraFoto({ titulo, onFoto, onFechar }: Props) {
         <div className="camera-foto-aviso">
           <p>{erro}</p>
           <button type="button" className="botao botao-primario" onClick={() => inputCameraRef.current?.click()}>
-            <MdPhotoCamera size={18} /> Câmera do telefone
+            <LuCamera size={20} /> Câmera do telefone
           </button>
           <button type="button" className="botao botao-secundario" onClick={() => inputGaleriaRef.current?.click()}>
-            <MdPhotoLibrary size={18} /> Galeria
+            <LuImages size={20} /> Galeria
           </button>
         </div>
       ) : (
@@ -141,10 +141,10 @@ export default function CameraFoto({ titulo, onFoto, onFechar }: Props) {
             {tirada ? (
               <>
                 <button type="button" className="camera-foto-acao" onClick={() => setTirada(null)}>
-                  <MdReplay size={22} /> Tirar outra
+                  <LuRotateCw size={22} /> Tirar outra
                 </button>
                 <button type="button" className="camera-foto-acao camera-foto-usar" onClick={usarFoto}>
-                  <MdCheck size={22} /> Usar
+                  <LuCheck size={22} /> Usar
                 </button>
               </>
             ) : (
@@ -155,7 +155,7 @@ export default function CameraFoto({ titulo, onFoto, onFechar }: Props) {
                   onClick={() => inputGaleriaRef.current?.click()}
                   aria-label="Escolher da galeria"
                 >
-                  <MdPhotoLibrary size={26} />
+                  <LuImages size={26} />
                 </button>
                 <button
                   type="button"
@@ -170,7 +170,7 @@ export default function CameraFoto({ titulo, onFoto, onFechar }: Props) {
                   onClick={() => setLado((atual) => (atual === 'environment' ? 'user' : 'environment'))}
                   aria-label="Virar a câmera"
                 >
-                  <MdCameraswitch size={26} />
+                  <LuSwitchCamera size={26} />
                 </button>
               </>
             )}

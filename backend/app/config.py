@@ -3,7 +3,7 @@ import os
 # Versão do projeto (Versionamento Semântico, https://semver.org/lang/pt-BR/)
 # — mantida em sincronia com "version" em frontend/package.json, que é o
 # valor exibido na tela de login. Ver CHANGELOG.md para o histórico.
-APP_VERSION = "1.27.0"
+APP_VERSION = "1.28.0"
 
 # Acesso de staff/técnico (ACL) ao Controllr acontece pelo painel
 # administrativo, numa porta própria (8443) — diferente do endpoint
@@ -45,10 +45,15 @@ AUDITORIA_USUARIOS = {
     u.strip().lower() for u in os.environ.get("AUDITORIA_USUARIOS", "").split(",") if u.strip()
 }
 
-# Tentativas de login erradas antes de bloquear por LOGIN_BLOQUEIO_MINUTOS:
-# por IP e por usuário (protege as senhas do Controllr de tentativa e erro).
-LOGIN_TENTATIVAS_IP = int(os.environ.get("LOGIN_TENTATIVAS_IP", "5"))
-LOGIN_TENTATIVAS_USUARIO = int(os.environ.get("LOGIN_TENTATIVAS_USUARIO", "10"))
+# Sessões gravadas cifradas para sobreviver a reinício (ver sessions.py).
+# SESSOES_CHAVE é uma chave Fernet gerada pelo install.sh; vazia = só memória.
+SESSOES_CHAVE = os.environ.get("SESSOES_CHAVE", "")
+SESSOES_ARQUIVO = os.environ.get("SESSOES_ARQUIVO", "dados/sessoes.bin")
+
+# Tentativas de login erradas antes de bloquear por LOGIN_BLOQUEIO_MINUTOS
+# (ver limite_login.py): por IP + usuário juntos e, mais alto, por IP.
+LOGIN_TENTATIVAS_PAR = int(os.environ.get("LOGIN_TENTATIVAS_PAR", "5"))
+LOGIN_TENTATIVAS_IP = int(os.environ.get("LOGIN_TENTATIVAS_IP", "20"))
 LOGIN_BLOQUEIO_MINUTOS = int(os.environ.get("LOGIN_BLOQUEIO_MINUTOS", "15"))
 
 # Origens permitidas em dev (Vite) — em produção o frontend é servido

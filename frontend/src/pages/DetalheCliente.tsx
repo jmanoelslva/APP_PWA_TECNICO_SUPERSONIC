@@ -1,14 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { LuReceipt, LuUser, LuWrench } from 'react-icons/lu'
-import {
-  MdAdd,
-  MdCable,
-  MdDescription,
-  MdEdit,
-  MdLocationOn,
-  MdWifi,
-} from 'react-icons/md'
+import { LuCable, LuFileText, LuMap, LuMapPin, LuPencil, LuPlus, LuReceipt, LuUser, LuWifi, LuWrench } from 'react-icons/lu'
 import {
   ApiError,
   atualizarTelefone,
@@ -43,6 +35,7 @@ import {
   formatarStatusContrato,
   formatarTelefone,
   nivelSinalOnu,
+  quandoFoi,
   TEXTO_SINAL_ONU,
 } from '../utils/formatacao'
 import './DetalheCliente.css'
@@ -255,6 +248,10 @@ function DetalheClienteConteudo() {
                       {resumo && !resumo.carregando && (
                         <p className="detalhe-cliente-lido">
                           {resumo.online === true ? 'Online agora' : resumo.online === false ? 'Sem sessão agora' : 'Sessão não consultada'}
+                          {/* Offline: quando caiu (último accounting), como na tela Clientes Offline. */}
+                          {resumo.online === false && quandoFoi(resumo.cpe?.date_acct) && (
+                            <> — caiu {quandoFoi(resumo.cpe?.date_acct)}</>
+                          )}
                           {' · '}
                           <LidoHa momento={resumo.lidoEm} />
                         </p>
@@ -297,14 +294,15 @@ function DetalheClienteConteudo() {
                         </div>
                       )}
 
-                      <div className="detalhe-cliente-item-acoes">
+                      {/* Mesma grade de ações do Offline e da OS. */}
+                      <div className="grade-acoes detalhe-cliente-grade">
                         <Link
                           to={`/conexao?cpe_pk=${cpe.cpe_pk}`}
-                          className="botao botao-secundario botao-pequeno"
-                          style={{ '--botao-cor': CORES.conexao } as CSSProperties}
+                          className="grade-acao"
+                          style={{ '--acao-cor': CORES.conexao } as CSSProperties}
                           viewTransition
                         >
-                          <MdWifi size={14} /> Conexão
+                          <LuWifi size={22} /> Conexão
                         </Link>
                         <Link
                           to={
@@ -312,11 +310,19 @@ function DetalheClienteConteudo() {
                               ? `/onu?username=${encodeURIComponent(cpe.cpe_username)}`
                               : `/onu?cpe_pk=${cpe.cpe_pk}`
                           }
-                          className="botao botao-secundario botao-pequeno"
-                          style={{ '--botao-cor': CORES.onu } as CSSProperties}
+                          className="grade-acao"
+                          style={{ '--acao-cor': CORES.onu } as CSSProperties}
                           viewTransition
                         >
-                          <MdCable size={14} /> ONU
+                          <LuCable size={22} /> ONU
+                        </Link>
+                        <Link
+                          to={`/mapa?cliente=${pk}`}
+                          className="grade-acao"
+                          style={{ '--acao-cor': CORES.endereco } as CSSProperties}
+                          viewTransition
+                        >
+                          <LuMap size={22} /> Mapa
                         </Link>
                       </div>
                     </div>
@@ -371,7 +377,7 @@ function DetalheClienteConteudo() {
                           rel="noreferrer"
                           className="detalhe-cliente-btn-assinar"
                         >
-                          <MdDescription size={18} /> Assinar contrato agora
+                          <LuFileText size={20} /> Assinar contrato agora
                         </a>
                       )}
                       {!contrato.contract_sign_date && !contrato.contract_sign_doc_link && (
@@ -386,7 +392,7 @@ function DetalheClienteConteudo() {
                             className="botao botao-secundario botao-pequeno"
                             style={{ '--botao-cor': CORES.cliente } as CSSProperties}
                           >
-                            <MdDescription size={14} /> Ver contrato assinado
+                            <LuFileText size={16} /> Ver contrato assinado
                           </a>
                         </div>
                       )}
@@ -405,8 +411,8 @@ function DetalheClienteConteudo() {
                     <div key={tel.phone_pk} className="detalhe-cliente-item">
                       <div className="detalhe-cliente-item-topo">
                         <strong>{tel.phone_identification ?? 'Telefone'}</strong>
-                        <button className="detalhe-cliente-btn-icone" onClick={() => setTelefoneEditando(tel)} aria-label="Editar telefone">
-                          <MdEdit size={18} />
+                        <button className="botao-icone botao-icone-fantasma" onClick={() => setTelefoneEditando(tel)} aria-label="Editar telefone">
+                          <LuPencil size={20} />
                         </button>
                       </div>
                       <p>{tel.phone_number ? formatarTelefone(tel.phone_number) : 'Número não informado'}</p>
@@ -419,7 +425,7 @@ function DetalheClienteConteudo() {
                     style={{ '--botao-cor': CORES.cliente } as CSSProperties}
                     onClick={() => setAdicionandoTelefone(true)}
                   >
-                    <MdAdd size={14} /> Adicionar telefone
+                    <LuPlus size={16} /> Adicionar telefone
                   </button>
                 </section>
 
@@ -430,8 +436,8 @@ function DetalheClienteConteudo() {
                     <div key={endereco.address_pk} className="detalhe-cliente-item">
                       <div className="detalhe-cliente-item-topo">
                         <strong>{endereco.address_identification ?? 'Endereço'}</strong>
-                        <button className="detalhe-cliente-btn-icone" onClick={() => setEnderecoEditando(endereco)} aria-label="Editar endereço">
-                          <MdEdit size={18} />
+                        <button className="botao-icone botao-icone-fantasma" onClick={() => setEnderecoEditando(endereco)} aria-label="Editar endereço">
+                          <LuPencil size={20} />
                         </button>
                       </div>
                       <p>
@@ -452,7 +458,7 @@ function DetalheClienteConteudo() {
                             className="botao botao-secundario botao-pequeno"
                             style={{ '--botao-cor': CORES.endereco } as CSSProperties}
                           >
-                            <MdLocationOn size={14} /> Ver no Google Maps
+                            <LuMapPin size={16} /> Ver no Google Maps
                           </a>
                         </div>
                       )}

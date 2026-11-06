@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, type CSSProperties } from 'react'
-import { MdMyLocation, MdSave } from 'react-icons/md'
+import { LuLocateFixed, LuSave } from 'react-icons/lu'
 import { ApiError, atualizarDetalhesCpe, type CpeDto, type DpDto } from '../../api/client'
 import { useToast } from '../../components/Toast/useToast'
 import { CORES } from '../../utils/cores'
@@ -71,6 +71,18 @@ export default function CardCto({
     dpSelecionada?.lat != null && dpSelecionada.lng != null
       ? { lat: dpSelecionada.lat, lng: dpSelecionada.lng }
       : (minhaLocalizacao ?? cliente ?? primeiraPosicao)
+  // Traçado do endereço do cliente até a CTO escolhida no campo (a gravada
+  // ou a que o técnico acabou de tocar), com a porta digitada.
+  const ligacoes =
+    cliente && dpSelecionada?.lat != null && dpSelecionada.lng != null
+      ? [
+          {
+            lat: dpSelecionada.lat,
+            lng: dpSelecionada.lng,
+            rotulo: `${dpSelecionada.name}${dpPorta.trim() ? ` · porta ${dpPorta.trim()}` : ''}`,
+          },
+        ]
+      : []
 
   const dpsFiltradas = (
     dpBusca.trim() ? dps.filter((dp) => dp.name.toLowerCase().includes(dpBusca.trim().toLowerCase())) : dps
@@ -206,7 +218,7 @@ export default function CardCto({
             aria-label="Usar minha localização para sugerir a CTO mais próxima"
             title={localizando ? 'Obtendo localização mais precisa…' : 'Usar minha localização para sugerir a CTO mais próxima'}
           >
-            <MdMyLocation size={16} />
+            <LuLocateFixed size={16} />
           </button>
         </div>
         {posicaoTecnico && precisaoTecnicoM != null && (
@@ -263,6 +275,7 @@ export default function CardCto({
             minhaLocalizacao={posicaoTecnico}
             precisaoM={precisaoTecnicoM}
             cliente={cliente}
+            ligacoes={ligacoes}
             onSelecionar={(dp) => {
               setDpPk(String(dp.pk))
               setDpBusca(dp.name)
@@ -274,7 +287,7 @@ export default function CardCto({
       ) : (
         <p className="conexao-sessao-vazio">
           Sem mapa: a CTO não tem coordenada e sua localização ainda não chegou. Toque em{' '}
-          <MdMyLocation size={12} /> para usar sua localização.
+          <LuLocateFixed size={16} /> para usar sua localização.
         </p>
       )}
       <button aria-busy={salvando}
@@ -283,7 +296,7 @@ export default function CardCto({
         onClick={salvar}
         disabled={salvando}
       >
-        <MdSave size={14} /> {salvando ? 'Salvando…' : 'Salvar CTO'}
+        <LuSave size={16} /> {salvando ? 'Salvando…' : 'Salvar CTO'}
       </button>
     </div>
   )

@@ -1,8 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { MdQrCodeScanner, MdSearch } from 'react-icons/md'
+import { LuCalendarClock, LuChevronRight, LuHammer, LuMap, LuScanQrCode, LuSearch, LuServer, LuWifiOff } from 'react-icons/lu'
 // Atalhos com ícones Lucide, iguais aos da barra de baixo.
-import { LuCalendarClock, LuChevronRight, LuHammer, LuMap, LuServer, LuWifiOff } from 'react-icons/lu'
 import { useSessao } from '../auth/useSessao'
 import { CORES, comAlpha } from '../utils/cores'
 import { usePwaInstall } from '../hooks/usePwaInstall'
@@ -25,6 +24,7 @@ import {
   type OnuDto,
 } from '../api/client'
 import { dataParaFormatoServidor, detectarTipoBusca, formatarDocumento, iniciais } from '../utils/formatacao'
+import { ctosComVariosOffline } from '../utils/offline'
 import './Home.css'
 
 function saudacaoPorHorario(nome: string): string {
@@ -45,6 +45,13 @@ function textoHoje(): string {
   return new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })
 }
 
+// Lista inteira de offline (uma ida, até 500) para contar também as CTOs
+// com mais de um cliente offline, como no alerta da tela Clientes Offline.
+async function lerOffline(): Promise<{ total: number; ctos: number }> {
+  const resposta = await listarCpeOffline({ start: 0, limit: 500 })
+  return { total: resposta.total, ctos: ctosComVariosOffline(resposta.results).length }
+}
+
 export default function Home() {
   const { tecnico, sair } = useSessao()
   const navigate = useNavigate()
@@ -57,9 +64,14 @@ export default function Home() {
   // Barra "X de Y OS concluídas": vem de rota própria porque a lista de OS
   // tira as finalizadas/fechadas (ver backend ordens_servico.py::resumo_do_dia).
   const [progresso, setProgresso] = useState<{ total: number; concluidas: number } | null>(null)
-  // Quantos clientes estão offline agora (atalho "Clientes Offline"). Só o
-  // total: a consulta pede 1 registro.
+  // Quantos clientes estão offline agora e quantas CTOs têm mais de um
+  // offline (provável problema coletivo) — atalho "Clientes Offline".
   const [totalOffline, setTotalOffline] = useState<number | null>(null)
+  const [ctosComProblema, setCtosComProblema] = useState(0)
+  function aplicarOffline(resumo: { total: number; ctos: number }) {
+    setTotalOffline(resumo.total)
+    setCtosComProblema(resumo.ctos)
+  }
   const avisos = useAvisos()
   // Por que o interruptor está travado, quando está.
   const dicaAvisos =
@@ -100,9 +112,9 @@ export default function Home() {
         if (!cancelado) setProgresso({ total: resposta.total, concluidas: resposta.concluidas })
       })
       .catch(() => {})
-    listarCpeOffline({ start: 0, limit: 1 })
-      .then((resposta) => {
-        if (!cancelado) setTotalOffline(resposta.total)
+    lerOffline()
+      .then((resumo) => {
+        if (!cancelado) aplicarOffline(resumo)
       })
       .catch(() => {})
     return () => {
@@ -149,8 +161,8 @@ export default function Home() {
       resumoDoDia(dataParaFormatoServidor(new Date()).slice(0, 10))
         .then((resposta) => setProgresso({ total: resposta.total, concluidas: resposta.concluidas }))
         .catch(() => {}),
-      listarCpeOffline({ start: 0, limit: 1 })
-        .then((resposta) => setTotalOffline(resposta.total))
+      lerOffline()
+        .then(aplicarOffline)
         .catch(() => {}),
     ])
   }
@@ -224,7 +236,7 @@ export default function Home() {
 
           <form className="home-busca home-combobox" onSubmit={aoBuscar}>
             <div className="home-busca-campo">
-              <MdSearch size={20} className="home-busca-icone" aria-hidden="true" />
+              <LuSearch size={20} className="home-busca-icone" aria-hidden="true" />
               <input
                 enterKeyHint="search"
                 value={busca}
@@ -243,7 +255,7 @@ export default function Home() {
                 aria-label="Ler código de barras ou QR pela câmera"
                 title="Ler código de barras ou QR pela câmera"
               >
-                <MdQrCodeScanner size={22} />
+                <LuScanQrCode size={22} />
               </button>
             </div>
             {listaAberta && busca.trim().length >= 2 && (
@@ -343,6 +355,14 @@ export default function Home() {
                   ) : (
                     <>
                       <b className="home-atalho-destaque">{totalOffline}</b> offline agora
+                      {ctosComProblema > 0 && (
+                        <>
+                          {' · '}
+                          <b className="home-atalho-alerta">
+                            {ctosComProblema} {ctosComProblema === 1 ? 'CTO' : 'CTOs'} com vários
+                          </b>
+                        </>
+                      )}
                     </>
                   )}
                 </span>

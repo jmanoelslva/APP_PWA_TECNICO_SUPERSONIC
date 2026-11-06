@@ -226,7 +226,8 @@
 }
 
 .mapa-cto {
-  margin-top: 10px;
+  /* Espaço embaixo para o que vem depois do mapa (ex.: "Salvar CTO"). */
+  margin: 10px 0 14px;
 }
 
 .mapa-cto-mapa {
@@ -246,7 +247,8 @@
 
 /* Fora do mapa (z-index 0 isola os controles do Leaflet), então z-index 1
    já fica por cima. */
-.mapa-cto-localizar {
+.mapa-cto-localizar,
+.mapa-cto-controle {
   position: absolute;
   right: 10px;
   bottom: 22px;
@@ -264,6 +266,20 @@
   cursor: pointer;
 }
 
+.mapa-cto-controle {
+  bottom: auto;
+  color: var(--cor-conexao);
+  text-decoration: none;
+}
+
+.mapa-cto-google {
+  top: 10px;
+}
+
+.mapa-cto-ampliar {
+  top: 52px;
+}
+
 .mapa-cto-mapa-ampliado {
   height: 60vh;
 }
@@ -272,43 +288,41 @@
   margin-top: 10px;
 }
 
-.mapa-cto-rodape {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 6px;
-  font-size: 12px;
-}
-
-.mapa-cto-rodape button,
-.mapa-cto-rodape a {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--cor-conexao);
-  font: inherit;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-}
-
 .mapa-cto-legenda {
+  /* Quadro sobre o mapa, canto inferior esquerdo; não alcança o botão de
+     localização (direita) nem a atribuição das imagens. */
+  position: absolute;
+  left: 8px;
+  bottom: 22px;
+  z-index: 1;
+  max-width: calc(100% - 64px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 5px 9px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--cor-superficie) 88%, transparent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  color: var(--cor-texto-secundario);
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.mapa-cto-legenda > span {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-right: auto;
-  color: var(--cor-texto-terciario);
+  gap: 5px;
+  white-space: nowrap;
 }
 
 .mapa-cto-legenda i {
   display: inline-block;
+  flex-shrink: 0;
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  margin-left: 4px;
 }
 
 /* Traçado cliente → CTO: tracejado branco, igual à linha do mapa */
@@ -383,20 +397,6 @@
   font-weight: 700;
   text-decoration: none;
   text-align: right;
-}
-
-.conexao-btn-link {
-  border: none;
-  background: var(--cor-fundo);
-  color: var(--cor-conexao);
-  border-radius: 8px;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  text-decoration: none;
 }
 
 .conexao-selo-status {

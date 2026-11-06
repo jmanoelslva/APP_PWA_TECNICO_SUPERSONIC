@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { MdCable, MdContentCopy, MdVisibility, MdVisibilityOff } from 'react-icons/md'
+import { LuCable, LuCopy, LuEye, LuEyeOff } from 'react-icons/lu'
 import type { CpeDto } from '../../api/client'
 import { useCopiar } from '../../hooks/useCopiar'
+import { CORES } from '../../utils/cores'
 
 /** Login PPPoE do cliente (usuário e senha de internet). */
 export default function CardPppoe({ cpe }: { cpe: CpeDto }) {
@@ -17,12 +18,12 @@ export default function CardPppoe({ cpe }: { cpe: CpeDto }) {
         <div className="conexao-campo-valor">
           <strong>{cpe.username ?? '—'}</strong>
           {cpe.username && (
-            <Link to={`/onu?username=${encodeURIComponent(cpe.username)}`} className="conexao-btn-link" aria-label="Ver ONU deste usuário" viewTransition>
-              <MdCable size={16} />
+            <Link to={`/onu?username=${encodeURIComponent(cpe.username)}`} className="botao-icone" style={{ '--botao-icone-cor': CORES.onu } as CSSProperties} aria-label="Ver ONU deste usuário" viewTransition>
+              <LuCable size={16} />
             </Link>
           )}
           <button onClick={() => copiar(cpe.username, 'Usuário')} aria-label="Copiar usuário">
-            <MdContentCopy size={16} />
+            <LuCopy size={16} />
           </button>
         </div>
       </div>
@@ -31,10 +32,10 @@ export default function CardPppoe({ cpe }: { cpe: CpeDto }) {
         <div className="conexao-campo-valor">
           <strong>{mostrarSenha ? cpe.password ?? '—' : '••••••••'}</strong>
           <button onClick={() => setMostrarSenha((v) => !v)} aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}>
-            {mostrarSenha ? <MdVisibilityOff size={16} /> : <MdVisibility size={16} />}
+            {mostrarSenha ? <LuEyeOff size={16} /> : <LuEye size={16} />}
           </button>
           <button onClick={() => copiar(cpe.password, 'Senha')} aria-label="Copiar senha">
-            <MdContentCopy size={16} />
+            <LuCopy size={16} />
           </button>
         </div>
       </div>

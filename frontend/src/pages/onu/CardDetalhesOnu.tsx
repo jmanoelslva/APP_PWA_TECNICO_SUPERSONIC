@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { MdEdit, MdPeopleAlt, MdPersonAdd } from 'react-icons/md'
+import { LuMap, LuPencil, LuUser, LuUserPlus } from 'react-icons/lu'
 import type { OnuDto } from '../../api/client'
 import { formatarUltimaQueda } from './formato'
 
@@ -23,11 +23,11 @@ export default function CardDetalhesOnu({
         <span>Cliente</span>
         {onu.client_pk ? (
           <Link to={`/clientes/${onu.client_pk}`} className="onu-link" viewTransition>
-            <MdPeopleAlt size={14} /> {onu.client_name ?? '—'}
+            <LuUser size={16} /> {onu.client_name ?? '—'}
           </Link>
         ) : (
           <button type="button" className="onu-btn-registrar-cliente" onClick={onRegistrarCliente} disabled={ocupado}>
-            <MdPersonAdd size={14} /> Registrar cliente
+            <LuUserPlus size={16} /> Registrar cliente
           </button>
         )}
       </div>
@@ -42,7 +42,7 @@ export default function CardDetalhesOnu({
         <div className="onu-campo-valor">
           <strong>{onu.name ?? '—'}</strong>
           <button type="button" onClick={onRenomear} disabled={ocupado} aria-label="Renomear ONU">
-            <MdEdit size={16} />
+            <LuPencil size={16} />
           </button>
         </div>
       </div>
@@ -94,7 +94,14 @@ export default function CardDetalhesOnu({
       </div>
       <div className="onu-linha">
         <span>Splitter (DP)</span>
-        <strong>{onu.dp_name ?? '—'}</strong>
+        {onu.dp_name && onu.client_pk ? (
+          // Abre o Mapa de CTOs com o cliente e o traçado até esta CTO.
+          <Link to={`/mapa?cliente=${onu.client_pk}`} className="onu-link" viewTransition>
+            <LuMap size={16} /> {onu.dp_name}
+          </Link>
+        ) : (
+          <strong>{onu.dp_name ?? '—'}</strong>
+        )}
       </div>
       <div className="onu-linha">
         <span>Porta da CTO</span>

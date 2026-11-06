@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { MdOpenInFull, MdCloseFullscreen, MdOpenInNew, MdMyLocation } from 'react-icons/md'
+import { LuExternalLink, LuLocateFixed, LuMaximize2, LuMinimize2 } from 'react-icons/lu'
 import { ApiError, buscarProjetoRede, type DpDto, type ItemProjetoDto } from '../../api/client'
 import { distanciaMetros, formatarDistancia } from './localizacao'
 
@@ -248,14 +248,15 @@ export default function MapaCto({
   }, [minhaLocalizacao?.lat, minhaLocalizacao?.lng, precisaoM])
 
   // Cliente com CTO longe: enquadra o traçado inteiro uma vez por cliente/CTO
-  // (não a cada leitura do GPS).
+  // (não a cada leitura do GPS, nem ao digitar a porta, que só muda o rótulo).
+  const chaveEnquadrar = cliente ? `${cliente.lat},${cliente.lng}|${ligacoes.map((l) => `${l.lat},${l.lng}`).join(';')}` : ''
   useEffect(() => {
     const mapa = mapaRef.current
     if (!mapa || !cliente || ligacoes.length === 0) return
     const limites = L.latLngBounds([[cliente.lat, cliente.lng], ...ligacoes.map((l): [number, number] => [l.lat, l.lng])])
     mapa.fitBounds(limites, { padding: [40, 40], maxZoom: 19 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chaveLigacoes])
+  }, [chaveEnquadrar])
 
   function irParaMinhaLocalizacao() {
     if (!minhaLocalizacao) {
@@ -301,29 +302,47 @@ export default function MapaCto({
           aria-label="Centralizar o mapa na minha localização"
           title="Minha localização"
         >
-          <MdMyLocation size={18} />
+          <LuLocateFixed size={20} />
         </button>
-      </div>
-      <div className="mapa-cto-rodape">
-        <span className="mapa-cto-legenda">
-          <i style={{ background: '#1a73e8' }} /> Você
+        {/* Ampliar e Google Maps dentro do mapa (canto superior direito), no
+            estilo do botão de localização — embaixo do mapa fica só o que é
+            da tela (ex.: "Salvar CTO" na Conexão). */}
+        <a
+          href={linkGoogleMaps}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mapa-cto-controle mapa-cto-google"
+          aria-label="Abrir no Google Maps"
+          title="Abrir no Google Maps"
+        >
+          <LuExternalLink size={20} />
+        </a>
+        <button
+          type="button"
+          className="mapa-cto-controle mapa-cto-ampliar"
+          onClick={() => setAmpliado((valor) => !valor)}
+          aria-label={ampliado ? 'Reduzir o mapa' : 'Ampliar o mapa'}
+          title={ampliado ? 'Reduzir' : 'Ampliar'}
+        >
+          {ampliado ? <LuMinimize2 size={20} /> : <LuMaximize2 size={20} />}
+        </button>
+        {/* Legenda dentro do mapa, no canto inferior esquerdo (como no
+            Google Maps); cada item com o marcador e o nome juntos. */}
+        <div className="mapa-cto-legenda">
+          <span>
+            <i style={{ background: '#1a73e8' }} /> Você
+          </span>
           {cliente && (
-            <>
+            <span>
               <i style={{ background: '#2e9e44' }} /> Cliente
-            </>
+            </span>
           )}
           {cliente && ligacoes.length > 0 && (
-            <>
+            <span>
               <i className="mapa-cto-legenda-ligacao" /> Até a CTO
-            </>
+            </span>
           )}
-        </span>
-        <button type="button" onClick={() => setAmpliado((valor) => !valor)}>
-          {ampliado ? <MdCloseFullscreen size={14} /> : <MdOpenInFull size={14} />} {ampliado ? 'Reduzir' : 'Ampliar'}
-        </button>
-        <a href={linkGoogleMaps} target="_blank" rel="noopener noreferrer">
-          <MdOpenInNew size={14} /> Google Maps
-        </a>
+        </div>
       </div>
       {avisoProjeto && <span className="mapa-cto-aviso">{avisoProjeto}</span>}
     </div>
