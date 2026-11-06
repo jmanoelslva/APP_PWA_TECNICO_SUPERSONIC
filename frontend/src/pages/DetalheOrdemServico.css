@@ -470,13 +470,48 @@
   margin-bottom: 8px;
 }
 
+/* Faixa do grupo de fotos (Na CTO / No cliente): destaca onde o técnico
+   precisa estar para tirar cada bloco de fotos. */
 .detalhe-ordem-foto-local {
-  margin: 12px 0 2px;
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--cor-suporte) 9%, var(--cor-superficie));
+  border: 1px solid color-mix(in srgb, var(--cor-suporte) 30%, var(--cor-borda));
+  color: var(--cor-texto);
+}
+
+.detalhe-ordem-foto-local-icone {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--cor-superficie);
+  color: var(--cor-suporte);
+}
+
+.detalhe-ordem-foto-local-nome {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.detalhe-ordem-foto-local-conta {
+  flex: none;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--cor-texto-secundario);
+  font-variant-numeric: tabular-nums;
+}
+
+.detalhe-ordem-foto-local.completo .detalhe-ordem-foto-local-icone,
+.detalhe-ordem-foto-local.completo .detalhe-ordem-foto-local-conta {
+  color: var(--cor-sucesso, #1a7f37);
 }
 
 .detalhe-ordem-foto-vendo img {

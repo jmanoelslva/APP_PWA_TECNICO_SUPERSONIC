@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { LuBan, LuCamera, LuChevronRight, LuCircleCheck, LuCopy, LuEye, LuEyeOff, LuLocateFixed, LuMap, LuMapPin, LuMessageCircle, LuNavigation, LuPaperclip, LuPencil, LuPlay, LuUser, LuWifi } from 'react-icons/lu'
+import { LuBan, LuBox, LuCamera, LuChevronRight, LuCircleCheck, LuCopy, LuEye, LuEyeOff, LuHouse, LuLocateFixed, LuMap, LuMapPin, LuMessageCircle, LuNavigation, LuPaperclip, LuPencil, LuPlay, LuUser, LuWifi } from 'react-icons/lu'
 import ModalEditarEndereco, { type AbaEndereco } from '../components/ModalEditarEndereco'
 import Abas, { useAbaLembrada, type Aba } from '../components/Abas'
 import LidoHa from '../components/LidoHa'
@@ -245,7 +245,7 @@ function DetalheOrdemServicoConteudo() {
   const [cpe, setCpe] = useState<CpeDto | null>(null)
   // Sinal da ONU desta conexão (mostrado no card Conexão).
   const [onuOs, setOnuOs] = useState<OnuDto | null>(null)
-  // Sessão PPPoE aberta agora (quadro "Pronto para fechar"); null = consultando.
+  // Sessão PPPoE aberta agora (quadro "Antes de finalizar"); null = consultando.
   const [cpeOnline, setCpeOnline] = useState<boolean | null>(null)
   const [carregandoOnu, setCarregandoOnu] = useState(false)
   const [onuLidaEm, setOnuLidaEm] = useState<number | null>(null)
@@ -459,7 +459,7 @@ function DetalheOrdemServicoConteudo() {
       .catch(() => {})
   }
 
-  // Atalho de cada item pendente do "Pronto para fechar" para a tela que corrige.
+  // Atalho de cada item pendente do "Antes de finalizar" para a tela que corrige.
   function acaoFechamento(item: ItemFechamento) {
     if (item.chave === 'endereco') {
       if (!endereco) return null
@@ -469,22 +469,26 @@ function DetalheOrdemServicoConteudo() {
         </button>
       )
     }
+    // Cada atalho abre a tela já na aba do item (?aba=, ver useAbaLembrada).
     if (item.chave === 'onu' || item.chave === 'sinal') {
-      const destino = onuOs?.sn
-        ? `/onu?serial=${encodeURIComponent(onuOs.sn)}`
+      const busca = onuOs?.sn
+        ? `serial=${encodeURIComponent(onuOs.sn)}`
         : cpe?.username
-          ? `/onu?username=${encodeURIComponent(cpe.username)}`
-          : '/onu'
+          ? `username=${encodeURIComponent(cpe.username)}`
+          : ''
+      // Sinal → aba Sinal; ONU (registrar cliente) → aba Equipamento.
+      const abaOnu = item.chave === 'sinal' ? 'sinal' : 'equipamento'
       return (
-        <Link to={destino} className="pronto-fechar-acao" viewTransition>
-          ONU
+        <Link to={`/onu?${busca ? `${busca}&` : ''}aba=${abaOnu}`} className="pronto-fechar-acao" viewTransition>
+          {item.chave === 'sinal' ? 'Sinal' : 'ONU'}
         </Link>
       )
     }
     if (!cpe?.pk) return null
+    const abaConexao = item.chave === 'cto' ? 'cto' : 'resumo'
     return (
-      <Link to={`/conexao?cpe_pk=${cpe.pk}`} className="pronto-fechar-acao" viewTransition>
-        Conexão
+      <Link to={`/conexao?cpe_pk=${cpe.pk}&aba=${abaConexao}`} className="pronto-fechar-acao" viewTransition>
+        {item.chave === 'cto' ? 'CTO' : 'Conexão'}
       </Link>
     )
   }
@@ -960,9 +964,30 @@ function DetalheOrdemServicoConteudo() {
                         const novoLocal = indice === 0 || fotosTarefa.fotos[indice - 1].local !== foto.local
                         return (
                           <div key={foto.chave}>
-                          {novoLocal && new Set(fotosTarefa.fotos.map((f) => f.local)).size > 1 && (
-                            <h3 className="detalhe-ordem-foto-local">{LOCAIS_FOTO[foto.local]}</h3>
-                          )}
+                          {novoLocal && new Set(fotosTarefa.fotos.map((f) => f.local)).size > 1 && (() => {
+                            // Faixa do grupo (Na CTO / No cliente): ícone, nome e
+                            // quantas fotos do grupo já estão resolvidas.
+                            const doGrupo = fotosTarefa.fotos.filter((f) => f.local === foto.local)
+                            const faltam = fotosFaltando(doGrupo, fotos, dispensas).length
+                            const completo = faltam === 0
+                            return (
+                              <h3 className={`detalhe-ordem-foto-local${completo ? ' completo' : ''}`}>
+                                <span className="detalhe-ordem-foto-local-icone">
+                                  {completo ? (
+                                    <LuCircleCheck size={20} />
+                                  ) : foto.local === 'cto' ? (
+                                    <LuBox size={20} />
+                                  ) : (
+                                    <LuHouse size={20} />
+                                  )}
+                                </span>
+                                <span className="detalhe-ordem-foto-local-nome">{LOCAIS_FOTO[foto.local]}</span>
+                                <span className="detalhe-ordem-foto-local-conta">
+                                  {doGrupo.length - faltam} de {doGrupo.length}
+                                </span>
+                              </h3>
+                            )
+                          })()}
                           {/* Linha inteira tocável: sem foto abre a câmera; com
                               foto (e miniatura) abre para conferir ou refazer. */}
                           <div className="detalhe-ordem-foto">
