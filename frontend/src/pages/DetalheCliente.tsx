@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { LuCable, LuFileText, LuMap, LuMapPin, LuPencil, LuPlus, LuReceipt, LuUser, LuWifi, LuWrench } from 'react-icons/lu'
+import { LuCable, LuFileText, LuLocateFixed, LuMap, LuMapPin, LuPencil, LuPlus, LuReceipt, LuUser, LuWifi, LuWrench } from 'react-icons/lu'
 import {
   ApiError,
   atualizarTelefone,
@@ -22,7 +22,7 @@ import SeloQuedas from '../components/SeloQuedas'
 import SeloStatusCliente from '../components/SeloStatusCliente'
 import { statusDoCliente } from '../utils/statusCliente'
 import { registrarRecente } from '../utils/buscaUnica'
-import ModalEditarEndereco from '../components/ModalEditarEndereco'
+import ModalEditarEndereco, { type AbaEndereco } from '../components/ModalEditarEndereco'
 import Skeleton from '../components/Skeleton'
 import PullToRefresh from '../components/PullToRefresh'
 import Abas, { useAbaLembrada, type Aba } from '../components/Abas'
@@ -107,6 +107,12 @@ function DetalheClienteConteudo() {
   const [cpes, setCpes] = useState<CpeComboDto[]>([])
   const [resumosConexao, setResumosConexao] = useState<Record<number, ResumoConexao>>({})
   const [enderecoEditando, setEnderecoEditando] = useState<EnderecoDto | null>(null)
+  const [abaEnderecoInicial, setAbaEnderecoInicial] = useState<AbaEndereco>('endereco')
+
+  function abrirEndereco(endereco: EnderecoDto, aba: AbaEndereco) {
+    setAbaEnderecoInicial(aba)
+    setEnderecoEditando(endereco)
+  }
   const [telefoneEditando, setTelefoneEditando] = useState<TelefoneDto | null>(null)
   const [adicionandoTelefone, setAdicionandoTelefone] = useState(false)
 
@@ -391,7 +397,7 @@ function DetalheClienteConteudo() {
                             href={contrato.contract_sign_doc_link}
                             target="_blank"
                             rel="noreferrer"
-                            className="botao botao-secundario botao-pequeno"
+                            className="botao botao-secundario botao-pequeno botao-largo"
                             style={{ '--botao-cor': CORES.cliente } as CSSProperties}
                           >
                             <LuFileText size={16} /> Ver contrato assinado
@@ -411,19 +417,21 @@ function DetalheClienteConteudo() {
                   {telefones.length === 0 && <p className="detalhe-cliente-vazio">Nenhum telefone cadastrado.</p>}
                   {telefones.map((tel) => (
                     <div key={tel.phone_pk} className="detalhe-cliente-item">
-                      <div className="detalhe-cliente-item-topo">
-                        <strong>{tel.phone_identification ?? 'Telefone'}</strong>
-                        <button className="botao-icone botao-icone-fantasma" onClick={() => setTelefoneEditando(tel)} aria-label="Editar telefone">
-                          <LuPencil size={20} />
-                        </button>
-                      </div>
+                      <strong>{tel.phone_identification ?? 'Telefone'}</strong>
                       <p>{tel.phone_number ? formatarTelefone(tel.phone_number) : 'Número não informado'}</p>
-                      <AcoesContato numero={tel.phone_number} />
+                      <AcoesContato
+                        numero={tel.phone_number}
+                        extra={
+                          <button type="button" className="acoes-contato-botao acoes-contato-editar" onClick={() => setTelefoneEditando(tel)}>
+                            <LuPencil size={16} /> Editar
+                          </button>
+                        }
+                      />
                     </div>
                   ))}
                   <button
                     type="button"
-                    className="botao botao-secundario botao-pequeno"
+                    className="botao botao-secundario botao-pequeno botao-largo"
                     style={{ '--botao-cor': CORES.cliente } as CSSProperties}
                     onClick={() => setAdicionandoTelefone(true)}
                   >
@@ -436,12 +444,7 @@ function DetalheClienteConteudo() {
                   {enderecos.length === 0 && <p className="detalhe-cliente-vazio">Nenhum endereço cadastrado.</p>}
                   {enderecos.map((endereco) => (
                     <div key={endereco.address_pk} className="detalhe-cliente-item">
-                      <div className="detalhe-cliente-item-topo">
-                        <strong>{endereco.address_identification ?? 'Endereço'}</strong>
-                        <button className="botao-icone botao-icone-fantasma" onClick={() => setEnderecoEditando(endereco)} aria-label="Editar endereço">
-                          <LuPencil size={20} />
-                        </button>
-                      </div>
+                      <strong>{endereco.address_identification ?? 'Endereço'}</strong>
                       <p>
                         {[endereco.address, endereco.address_number, endereco.address_neighborhood]
                           .filter(Boolean)
@@ -451,8 +454,17 @@ function DetalheClienteConteudo() {
                         <p>{[endereco.address_province, endereco.address_state].filter(Boolean).join(' - ')}</p>
                       )}
                       {endereco.address_zipcode && <p>CEP: {formatarCep(endereco.address_zipcode)}</p>}
-                      {endereco.address_latitude && endereco.address_longitude && (
-                        <div className="detalhe-cliente-item-acoes">
+                      {/* Cartão grande: "Editar" com texto, lado a lado com a ação do mapa. */}
+                      <div className="acoes-cartao">
+                        <button
+                          type="button"
+                          className="botao botao-secundario botao-pequeno"
+                          style={{ '--botao-cor': CORES.cliente } as CSSProperties}
+                          onClick={() => abrirEndereco(endereco, 'endereco')}
+                        >
+                          <LuPencil size={16} /> Editar
+                        </button>
+                        {endereco.address_latitude && endereco.address_longitude ? (
                           <a
                             href={`https://www.google.com/maps/search/?api=1&query=${endereco.address_latitude},${endereco.address_longitude}`}
                             target="_blank"
@@ -460,10 +472,19 @@ function DetalheClienteConteudo() {
                             className="botao botao-secundario botao-pequeno"
                             style={{ '--botao-cor': CORES.endereco } as CSSProperties}
                           >
-                            <LuMapPin size={16} /> Ver no Google Maps
+                            <LuMapPin size={16} /> Ver no mapa
                           </a>
-                        </div>
-                      )}
+                        ) : (
+                          <button
+                            type="button"
+                            className="botao botao-secundario botao-pequeno"
+                            style={{ '--botao-cor': CORES.endereco } as CSSProperties}
+                            onClick={() => abrirEndereco(endereco, 'localizacao')}
+                          >
+                            <LuLocateFixed size={16} /> Marcar local
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </section>
@@ -476,6 +497,7 @@ function DetalheClienteConteudo() {
           <ModalEditarEndereco
             endereco={enderecoEditando}
             corDestaque={CORES.cliente}
+            abaInicial={abaEnderecoInicial}
             onFechar={() => setEnderecoEditando(null)}
             onSalvo={(atualizado) => {
               setEnderecos((atual) => atual.map((e) => (e.address_pk === atualizado.address_pk ? atualizado : e)))

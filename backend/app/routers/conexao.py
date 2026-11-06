@@ -150,15 +150,19 @@ async def historico_sessoes_cpe(
 
 class ContextoAuditoriaCpe(BaseModel):
     """Como a conexão estava na tela antes de salvar — só vai para a
-    auditoria, nunca para o Controllr. Senha nenhuma: só se foi trocada."""
+    auditoria, nunca para o Controllr. Senhas do Wi-Fi e de acesso ao
+    roteador: gravadas (anterior e nova), por decisão do usuário em 06/11 —
+    os técnicos já as veem no app."""
 
     cliente: str | None = Field(default=None, max_length=128)
     pppoe: str | None = Field(default=None, max_length=64)
     wifi_tipo_anterior: int | None = None
     senha_wifi_alterada: bool | None = None
+    senha_wifi_anterior: str | None = Field(default=None, max_length=128)
     login_anterior: str | None = Field(default=None, max_length=64)
     porta_anterior: int | None = None
     senha_acesso_alterada: bool | None = None
+    senha_acesso_anterior: str | None = Field(default=None, max_length=128)
 
 
 def _alvo_cpe(cpe_pk: int, contexto: ContextoAuditoriaCpe | None, **depois: Any) -> dict[str, Any]:
@@ -202,10 +206,28 @@ async def atualizar_wifi_cpe(
     resposta = await ctx.controllr.cpe_update(urlencode(campos))
     if not resposta.success:
         raise HTTPException(status_code=400, detail=detalhe_erro("Não foi possível atualizar o Wi-Fi.", resposta))
-    # Sem a senha em si no log — só o registro de que foi alterada.
-    registrar_auditoria(request, ctx.session, "cpe.editar_wifi",
-                        _alvo_cpe(cpe_pk, payload.auditoria, wifi_tipo=payload.wifi_encryption_type))
+    # Senha anterior (vem da tela) e nova no registro. Salvar de novo sem
+    # mudar tipo nem senha não vira registro.
+    a = payload.auditoria
+    sem_mudanca = (
+        a is not None
+        and a.senha_wifi_alterada is False
+        and payload.wifi_encryption_type == a.wifi_tipo_anterior
+    )
+    if not sem_mudanca:
+        registrar_auditoria(request, ctx.session, "cpe.editar_wifi",
+                            _alvo_cpe(cpe_pk, a, wifi_tipo=payload.wifi_encryption_type,
+                                      wifi_senha=payload.wifi_encryption_password))
     return {"success": True, "results": resposta.results}
+
+
+def _acesso_sem_mudanca(payload: "CpeDetalhesPayload") -> bool:
+    """Login, porta e senha iguais ao que a tela tinha: salvar de novo não
+    vira registro. Sem o contexto da tela, não dá para saber: registra."""
+    a = payload.auditoria
+    if a is None or a.senha_acesso_alterada is not False:
+        return False
+    return (payload.cpe_access_login or "") == (a.login_anterior or "") and payload.cpe_access_port == a.porta_anterior
 
 
 class CpeDetalhesPayload(BaseModel):
@@ -244,20 +266,28 @@ async def atualizar_detalhes_cpe(
         if payload.dp_pk is None:
             enviado.pop("dp_name")
         base = antes or depois
-        registrar_auditoria(request, ctx.session, "cpe.editar_cto" if muda_cto else "cpe.editar_observacao", {
-            k: v for k, v in {
-                "cpe_pk": cpe_pk,
-                "cliente": base.get("client_complete_name") or (payload.auditoria.cliente if payload.auditoria else None),
-                "pppoe": base.get("cpe_username") or (payload.auditoria.pppoe if payload.auditoria else None),
-                "alteracoes": _alteracoes_cpe(antes, enviado),
-            }.items() if v not in (None, "", [])
-        })
-    if payload.cpe_access_login is not None or payload.cpe_access_password is not None or payload.cpe_access_port is not None:
+        lista = _alteracoes_cpe(antes, enviado)
+        # Salvar de novo sem mudar nada (visto ao vivo em 06/11: "Salvar CTO"
+        # tocado duas vezes) não é alteração: sem registro. Sem o "antes" não
+        # dá para saber, então registra.
+        if lista or not antes:
+            registrar_auditoria(request, ctx.session, "cpe.editar_cto" if muda_cto else "cpe.editar_observacao", {
+                k: v for k, v in {
+                    "cpe_pk": cpe_pk,
+                    "cliente": base.get("client_complete_name") or (payload.auditoria.cliente if payload.auditoria else None),
+                    "pppoe": base.get("cpe_username") or (payload.auditoria.pppoe if payload.auditoria else None),
+                    "alteracoes": lista,
+                }.items() if v not in (None, "", [])
+            })
+    if (
+        payload.cpe_access_login is not None or payload.cpe_access_password is not None or payload.cpe_access_port is not None
+    ) and not _acesso_sem_mudanca(payload):
         registrar_auditoria(
             request,
             ctx.session,
             "cpe.editar_acesso_roteador",
             _alvo_cpe(cpe_pk, payload.auditoria,
-                      cpe_access_login=payload.cpe_access_login, cpe_access_port=payload.cpe_access_port),
+                      cpe_access_login=payload.cpe_access_login, cpe_access_port=payload.cpe_access_port,
+                      cpe_access_password=payload.cpe_access_password),
         )
     return {"success": True, "results": resposta.results}

@@ -466,9 +466,11 @@ export interface ContextoAuditoriaCpe {
   pppoe?: string
   wifi_tipo_anterior?: number
   senha_wifi_alterada?: boolean
+  senha_wifi_anterior?: string
   login_anterior?: string
   porta_anterior?: number
   senha_acesso_alterada?: boolean
+  senha_acesso_anterior?: string
 }
 
 export function atualizarWifiCpe(
@@ -1014,6 +1016,22 @@ export interface MeuIpResponse {
 // A chave da Geolocation API do ipify fica só no servidor.
 export function consultarMeuIp(ip?: string): Promise<MeuIpResponse> {
   return get<MeuIpResponse>('ferramentas/meu-ip', { ip })
+}
+
+// Endereço de um CEP (ViaCEP, consultado pelo servidor). Campos vazios no
+// ViaCEP (CEP geral de cidade) vêm null.
+export interface CepResponse {
+  success: boolean
+  cep: string
+  address: string | null
+  address_neighborhood: string | null
+  address_province: string | null
+  address_state: string | null
+  address_siafi: number | null
+}
+
+export function consultarCep(cep: string): Promise<CepResponse> {
+  return get<CepResponse>(`ferramentas/cep/${encodeURIComponent(cep)}`)
 }
 
 // ---------------------------------------------------------------------

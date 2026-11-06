@@ -223,6 +223,42 @@ def test_cto_e_observacao_da_conexao_entram_na_auditoria(pasta, monkeypatch):
     assert obs["alvo"]["alteracoes"] == [{"rotulo": "Observação", "antes": "poste 12", "depois": "(vazia)"}]
 
 
+def test_salvar_de_novo_sem_mudanca_nao_duplica_registro(pasta, monkeypatch):
+    from app.brbyteapi.controllr import AsyncControllr
+    from app.deps import get_current_session
+    from app.main import app
+
+    linha = {"cpe_pk": 9, "dp_name": "CTO-07", "cpe_dp_port": 5, "cpe_obs": "",
+             "client_complete_name": "Maria da Silva", "cpe_username": "maria.silva"}
+
+    async def falso_post(self, caminho, body):
+        return SimpleNamespace(success=True, results=[linha])
+
+    async def falso_update(self, body):
+        return SimpleNamespace(success=True, results=[])
+
+    monkeypatch.setattr(AsyncControllr, "call_api_post", falso_post)
+    monkeypatch.setattr(AsyncControllr, "cpe_update", falso_update)
+    app.dependency_overrides[get_current_session] = lambda: sessao("joao")
+    mesmo_acesso = {"cpe_access_login": "admin", "cpe_access_password": "x", "cpe_access_port": 80,
+                    "auditoria": {"login_anterior": "admin", "porta_anterior": 80, "senha_acesso_alterada": False}}
+    so_senha = {**mesmo_acesso, "auditoria": {**mesmo_acesso["auditoria"], "senha_acesso_alterada": True}}
+    try:
+        c = TestClient(app)
+        # CTO e porta iguais às do Controllr: nada mudou.
+        assert c.put("/cpe/9/detalhes", json={"dp_pk": 70, "cpe_dp_port": 5}).status_code == 200
+        assert c.put("/cpe/9/detalhes", json=mesmo_acesso).status_code == 200
+        # Só a senha de acesso trocada: registra.
+        assert c.put("/cpe/9/detalhes", json=so_senha).status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+
+    eventos = audit.consultar()[0]
+    assert len(eventos) == 1
+    assert eventos[0]["acao"] == "cpe.editar_acesso_roteador"
+    assert eventos[0]["alvo"]["senha_acesso_alterada"] is True
+
+
 def test_etapas_da_os_liberacao_e_login_entram_na_auditoria(pasta, monkeypatch):
     from app.brbyteapi.controllr import AsyncControllr
     from app.deps import get_current_session
@@ -282,11 +318,12 @@ def test_wifi_e_acesso_gravam_antes_e_depois_sem_senha(pasta, monkeypatch):
         c = TestClient(app)
         assert c.put("/cpe/9/wifi", json={
             "wifi_encryption_type": 2, "wifi_encryption_password": "segredo1",
-            "auditoria": {**contexto, "wifi_tipo_anterior": 0, "senha_wifi_alterada": True},
+            "auditoria": {**contexto, "wifi_tipo_anterior": 0, "senha_wifi_alterada": True, "senha_wifi_anterior": "velha1"},
         }).status_code == 200
         assert c.put("/cpe/9/detalhes", json={
             "cpe_access_login": "admin2", "cpe_access_password": "segredo2", "cpe_access_port": 8080,
-            "auditoria": {**contexto, "login_anterior": "admin", "porta_anterior": 80, "senha_acesso_alterada": False},
+            "auditoria": {**contexto, "login_anterior": "admin", "porta_anterior": 80, "senha_acesso_alterada": True,
+                          "senha_acesso_anterior": "antiga9"},
         }).status_code == 200
     finally:
         app.dependency_overrides.clear()
@@ -294,10 +331,12 @@ def test_wifi_e_acesso_gravam_antes_e_depois_sem_senha(pasta, monkeypatch):
     # O contexto da auditoria não vai para o Controllr.
     assert all("auditoria" not in b and "cliente" not in b for b in enviados)
     wifi, acesso = reversed(audit.consultar()[0])
-    assert wifi["alvo"] == {"cpe_pk": 9, **contexto, "wifi_tipo_anterior": 0, "senha_wifi_alterada": True, "wifi_tipo": 2}
+    assert wifi["alvo"] == {"cpe_pk": 9, **contexto, "wifi_tipo_anterior": 0, "senha_wifi_alterada": True,
+                            "senha_wifi_anterior": "velha1", "wifi_tipo": 2, "wifi_senha": "segredo1"}
+    # Senhas de acesso ao roteador e do Wi-Fi gravadas (anterior e nova).
     assert acesso["alvo"] == {"cpe_pk": 9, **contexto, "login_anterior": "admin", "porta_anterior": 80,
-                              "senha_acesso_alterada": False, "cpe_access_login": "admin2", "cpe_access_port": 8080}
-    assert "segredo" not in json.dumps([wifi, acesso])
+                              "senha_acesso_alterada": True, "senha_acesso_anterior": "antiga9",
+                              "cpe_access_login": "admin2", "cpe_access_port": 8080, "cpe_access_password": "segredo2"}
 
 
 def test_login_cookie_seguro_e_sem_lista_de_usuarios(monkeypatch):

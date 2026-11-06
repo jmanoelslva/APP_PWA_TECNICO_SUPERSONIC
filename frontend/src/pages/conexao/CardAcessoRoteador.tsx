@@ -41,6 +41,7 @@ export default function CardAcessoRoteador({
           login_anterior: cpe.access_login,
           porta_anterior: cpe.access_port,
           senha_acesso_alterada: acessoSenha !== (cpe.access_password ?? ''),
+          senha_acesso_anterior: cpe.access_password ?? undefined,
         },
       })
       onAtualizado({ access_login: acessoLogin, access_password: acessoSenha, access_port: porta })
@@ -90,7 +91,7 @@ export default function CardAcessoRoteador({
         />
       </div>
       <button aria-busy={salvando}
-        className="botao botao-secundario botao-pequeno"
+        className="botao botao-secundario botao-pequeno botao-largo"
         style={{ '--botao-cor': CORES.conexao } as CSSProperties}
         onClick={salvar}
         disabled={salvando}

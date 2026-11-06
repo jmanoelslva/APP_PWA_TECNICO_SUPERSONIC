@@ -37,6 +37,7 @@ TITULOS = {
     "1.27.0": "Fotos da OS na ordem do serviço, sinal da ONU na Auditoria e CTO do cliente no mapa",
     "1.28.0": "Clientes Offline como diagnóstico, traçado até a CTO e app padronizado",
     "1.29.0": "OS pronta para fechar, portas da CTO, quedas recentes e buscas maiores",
+    "1.30.0": "Endereço em tela cheia com mapa e CEP, botões padronizados e senhas na auditoria",
     "1.24.0": "Mensagem e anexo no chamado, atalhos sem texto cortado e botões sem degradê",
     "1.0.0": "Primeira versão estável",
     "1.4.0": "Sessão do Controllr pelo cookie do login e detecção de sessão encerrada",
