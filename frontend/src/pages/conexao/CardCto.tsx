@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, type CSSProperties } from 'react'
-import { LuLocateFixed, LuSave } from 'react-icons/lu'
+import { LuLocateFixed, LuSave, LuX } from 'react-icons/lu'
 import { ApiError, atualizarDetalhesCpe, type CpeDto, type DpDto } from '../../api/client'
 import { useToast } from '../../components/Toast/useToast'
 import { CORES } from '../../utils/cores'
@@ -43,7 +43,8 @@ export default function CardCto({
   const [dpPk, setDpPk] = useState(cpe.dp_pk != null ? String(cpe.dp_pk) : '')
   const [dpBusca, setDpBusca] = useState(cpe.dp_name ?? '')
   const [dpListaAberta, setDpListaAberta] = useState(false)
-  const [dpPorta, setDpPorta] = useState(cpe.dp_port != null ? String(cpe.dp_port) : '')
+  // Porta 0 no Controllr = sem porta: mostra o campo vazio.
+  const [dpPorta, setDpPorta] = useState(cpe.dp_port ? String(cpe.dp_port) : '')
   const [salvando, setSalvando] = useState(false)
   // Localização do técnico (botão "Usar minha localização") — usada só
   // para sugerir/ordenar a CTO mais próxima por distância, nunca para
@@ -178,13 +179,20 @@ export default function CardCto({
     setSalvando(true)
     try {
       const novoDpPk = dpPk.trim() ? Number(dpPk.trim()) : undefined
-      const novaPorta = dpPorta.trim() ? Number(dpPorta.trim()) : undefined
+      // Campo vazio (ou 0) com porta gravada: manda 0, que limpa a porta.
+      const novaPorta = dpPorta.trim() ? Number(dpPorta.trim()) : cpe.dp_port ? 0 : undefined
       await atualizarDetalhesCpe(cpe.pk, { dp_pk: novoDpPk, cpe_dp_port: novaPorta })
       const dpEscolhida = dps.find((dp) => String(dp.pk) === dpPk.trim())
       onAtualizado({ dp_pk: novoDpPk, dp_port: novaPorta, dp_name: dpEscolhida?.name ?? cpe.dp_name })
       toast('CTO atualizada.', 'sucesso')
     } catch (excecao) {
-      toast(excecao instanceof ApiError ? excecao.message : 'Não foi possível atualizar a CTO.')
+      // O Controllr recusa porta de outro CPE habilitado com "duplicate".
+      const mensagem = excecao instanceof ApiError ? excecao.message : ''
+      toast(
+        /duplicat/i.test(mensagem)
+          ? `A porta ${dpPorta.trim()} já está em uso por outra conexão nesta CTO. Escolha uma porta livre.`
+          : mensagem || 'Não foi possível atualizar a CTO.',
+      )
     } finally {
       setSalvando(false)
     }
@@ -261,13 +269,30 @@ export default function CardCto({
       </div>
       <div className="conexao-campo">
         <span>Porta da CTO</span>
-        <input
-          className="conexao-input"
-          type="number"
-          value={dpPorta}
-          onChange={(e) => setDpPorta(e.target.value)}
-          placeholder="Não informado"
-        />
+        {/* Limpar no próprio campo, como o botão de localização da CTO. */}
+        <div className="conexao-campo-valor">
+          <input
+            className="conexao-input"
+            type="number"
+            value={dpPorta}
+            onChange={(e) => setDpPorta(e.target.value)}
+            placeholder="Não informado"
+          />
+          {dpPorta.trim() !== '' && (
+            <button
+              type="button"
+              className="conexao-campo-limpar"
+              onClick={() => setDpPorta('')}
+              aria-label="Limpar porta"
+              title="Limpar porta"
+            >
+              <LuX size={20} strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+        {!!cpe.dp_port && (!dpPorta.trim() || Number(dpPorta.trim()) === 0) && (
+          <small className="conexao-combobox-precisao">Ao salvar, a porta {cpe.dp_port} será limpa.</small>
+        )}
       </div>
       <PortasCto
         dpPk={dpSelecionada?.pk ?? null}

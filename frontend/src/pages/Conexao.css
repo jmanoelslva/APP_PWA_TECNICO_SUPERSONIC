@@ -89,6 +89,13 @@
   flex-shrink: 0;
 }
 
+/* Limpar porta da CTO: ação destrutiva, em vermelho para se destacar. */
+.conexao-campo-valor button.conexao-campo-limpar {
+  border: 1.5px solid color-mix(in srgb, var(--cor-erro) 55%, transparent);
+  background: color-mix(in srgb, var(--cor-erro) 10%, var(--cor-superficie));
+  color: var(--cor-erro);
+}
+
 .conexao-historico-titulo {
   /* Sem border-top de propósito — a linha "Última autenticação" logo
      acima já termina com um separador. */
@@ -437,16 +444,16 @@
   color: var(--cor-texto-secundario);
 }
 
-.portas-cto-livres {
-  display: flex;
-  flex-wrap: wrap;
+.portas-cto-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
   gap: 8px;
 }
 
-.portas-cto-livres button {
-  min-width: 48px;
+.portas-cto-grade button {
+  position: relative;
   height: 48px;
-  padding: 0 10px;
+  padding: 0;
   border: 1.5px solid var(--cor-borda);
   border-radius: 12px;
   background: var(--cor-superficie);
@@ -457,45 +464,186 @@
   cursor: pointer;
 }
 
-.portas-cto-livres button.escolhida {
+/* Ocupada: cheia, número claro. */
+.portas-cto-grade button.ocupada {
+  border-color: var(--cor-texto-secundario);
+  background: var(--cor-texto-secundario);
+  color: var(--cor-superficie);
+}
+
+.portas-cto-grade button.propria {
+  border-color: var(--cor-conexao);
+  background: var(--cor-conexao);
+  color: #fff;
+}
+
+.portas-cto-grade button.repetida {
+  border-color: var(--cor-erro);
+  background: var(--cor-erro);
+  color: #fff;
+}
+
+/* Livre que já teve cliente (contrato cancelado/desativado). */
+.portas-cto-grade button.liberada {
+  border-style: dashed;
+}
+
+.portas-cto-grade button.livre.escolhida {
   border-color: var(--cor-conexao);
   background: color-mix(in srgb, var(--cor-conexao) 14%, var(--cor-superficie));
 }
 
-.portas-cto-ocupadas {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.portas-cto-grade button.vista {
+  outline: 3px solid color-mix(in srgb, var(--cor-conexao) 45%, transparent);
+  outline-offset: 2px;
 }
 
-.portas-cto-ocupadas li {
+/* Bolinha: situação do contrato do ocupante. Anel claro para aparecer
+   sobre qualquer fundo (cinza, cor da Conexão ou vermelho). */
+.portas-cto-ponto {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--cor-texto-desabilitado);
+  box-shadow: 0 0 0 1.5px #fff;
+}
+
+.portas-cto-ponto.contrato-1 {
+  background: #22c55e;
+}
+
+/* Mesmas cores do Controllr: cinza desativado, verde ativado, amarelo
+   alertado, laranja pendente, vermelho bloqueado e preto cancelado. */
+.portas-cto-ponto.contrato-0 {
+  background: #9ca3af;
+}
+
+.portas-cto-ponto.contrato-2 {
+  background: #facc15;
+}
+
+.portas-cto-ponto.contrato-3 {
+  background: #f97316;
+}
+
+.portas-cto-ponto.contrato-4 {
+  background: #dc2626;
+}
+
+.portas-cto-ponto.contrato-5 {
+  background: #000;
+}
+
+.portas-cto-legenda {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 48px;
-  padding: 4px 0;
-  font-size: 15px;
-}
-
-.portas-cto-ocupadas li + li {
-  border-top: 1px solid var(--cor-borda-suave);
-}
-
-.portas-cto-numero {
-  flex-shrink: 0;
-  min-width: 36px;
-  text-align: center;
-  font-family: var(--fonte-mono);
-  font-weight: 700;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 8px;
+  font-size: 13px;
   color: var(--cor-texto-secundario);
 }
 
-.portas-cto-ocupadas li.propria .portas-cto-numero {
-  color: var(--cor-conexao);
+.portas-cto-legenda > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.portas-cto-ocupadas li.repetida .portas-cto-numero {
-  color: var(--cor-erro);
+.portas-cto-legenda .portas-cto-ponto {
+  position: static;
+  box-shadow: 0 0 0 1px var(--cor-borda);
+}
+
+.portas-cto-detalhe {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 0 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--cor-fundo);
+  font-size: 15px;
+  color: var(--cor-texto);
+}
+
+.portas-cto-ocupante + .portas-cto-ocupante {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.portas-cto-ocupante-topo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Número da porta em destaque ao lado do ocupante. */
+.portas-cto-numero {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--cor-superficie);
+  box-shadow: inset 0 0 0 1px var(--cor-borda);
+  font-family: var(--fonte-mono);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.portas-cto-selos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.portas-cto-selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--cor-superficie);
+  box-shadow: inset 0 0 0 1px var(--cor-borda);
+  font-size: 13px;
+  color: var(--cor-texto-secundario);
+}
+
+.portas-cto-selo .portas-cto-ponto {
+  position: static;
+}
+
+.portas-cto-selo.online {
+  color: var(--cor-sucesso, #2e7d32);
+}
+
+.portas-cto-selo.offline {
+  color: var(--cor-offline);
+}
+
+.portas-cto-confirmar {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--cor-erro) 8%, var(--cor-superficie));
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.portas-cto-confirmar.alerta {
+  background: color-mix(in srgb, var(--cor-erro) 16%, var(--cor-superficie));
+}
+
+.botao-perigo-cheio {
+  border-color: var(--cor-erro);
+  background: var(--cor-erro);
+  color: #ffffff;
 }
 
 .portas-cto-aviso {
