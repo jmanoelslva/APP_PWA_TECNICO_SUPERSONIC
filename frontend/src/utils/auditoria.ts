@@ -90,8 +90,12 @@ export function detalhes(alvo: Alvo, acao?: string): Detalhe[] {
     itens.push({ rotulo: 'ONU', valor: tem(alvo.porta) ? `PON ${alvo.porta} · nº ${alvo.onu_id}` : `nº ${alvo.onu_id}` })
   } else if (tem(alvo.onu_pk)) {
     itens.push({ rotulo: 'ONU', valor: texto(alvo.onu_pk) })
+  } else if (tem(alvo.slot) && tem(alvo.porta)) {
+    // ONU registrada pelo app: ainda sem número na PON.
+    itens.push({ rotulo: 'ONU', valor: `PON ${alvo.slot}/${alvo.porta}` })
   }
   if (tem(alvo.serial)) itens.push({ rotulo: 'Serial', valor: texto(alvo.serial) })
+  if (tem(alvo.modelo)) itens.push({ rotulo: 'Modelo', valor: texto(alvo.modelo) })
   if (associacao) return itens
   if (tem(alvo.endereco)) itens.push({ rotulo: 'Endereço', valor: texto(alvo.endereco) })
   if (tem(alvo.telefone)) itens.push({ rotulo: 'Telefone', valor: texto(alvo.telefone) })

@@ -17,6 +17,7 @@ import CardsSinal from './onu/CardsSinal'
 import { formatarTempoDesdeColeta } from './onu/formato'
 import { ModalConfirmarAcao, ModalRenomear } from './onu/ModaisAcaoOnu'
 import ModalRegistrarCliente from './onu/ModalRegistrarCliente'
+import OnusAguardando from './onu/OnusAguardando'
 import './OnuStatus.css'
 
 type AbaOnu = 'sinal' | 'credenciais' | 'equipamento'
@@ -242,11 +243,20 @@ export default function OnuStatus() {
         <BuscaOnu onEscolher={(parametros) => setParams(parametros, { replace: true })} />
 
         {semSelecao && !erro && (
-          <EstadoVazio
-            icone={LuCable}
-            titulo="Busque pelo serial da ONU ou pelo usuário PPPoE"
-            subtitulo="Ou acesse esta tela a partir dos detalhes de um cliente."
-          />
+          <>
+            {/* ONU nova registrada: abre ela na aba Equipamento, onde fica "Registrar cliente". */}
+            <OnusAguardando
+              onRegistrada={(serial) => {
+                setAba('equipamento')
+                setParams({ serial }, { replace: true })
+              }}
+            />
+            <EstadoVazio
+              icone={LuCable}
+              titulo="Busque pelo serial da ONU ou pelo usuário PPPoE"
+              subtitulo="Ou acesse esta tela a partir dos detalhes de um cliente."
+            />
+          </>
         )}
 
         {carregando && (

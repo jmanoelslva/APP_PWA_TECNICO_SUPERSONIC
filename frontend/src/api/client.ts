@@ -719,6 +719,31 @@ export interface AssociarClienteOnuPayload extends OspoOnu {
   auditoria?: { olt_nome?: string; cliente_anterior?: string; pppoe_anterior?: string }
 }
 
+/** ONU ligada na fibra e ainda não registrada numa OLT ZTE (routers/onu.py). */
+export interface OnuNaoRegistradaDto {
+  olt_pk: number
+  olt_nome?: string
+  frame_id: number
+  slot_id: number
+  port_id: number
+  serial: string
+  modelo: string
+}
+
+export function listarOnusNaoRegistradas(): Promise<{ success: boolean; results: OnuNaoRegistradaDto[]; olts: string[] }> {
+  return get('onu/nao-registradas')
+}
+
+export function provisionarOnu(dados: {
+  olt_pk: number
+  slot_id: number
+  port_id: number
+  onu_serial: string
+  onu_name: string
+}): Promise<{ success: boolean; results: unknown }> {
+  return post('onu/provisionar', dados)
+}
+
 export function associarClienteOnu(
   onuPk: number,
   dados: AssociarClienteOnuPayload,

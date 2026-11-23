@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import re
 from typing import Any
 from urllib.parse import urlencode
 
@@ -11,6 +13,12 @@ from ..http_errors import detalhe_erro
 from ..where import corpo, where_eq
 
 router = APIRouter(prefix="/onu", tags=["onu"])
+logger = logging.getLogger(__name__)
+
+# Fabricantes de OLT em que a ONU nova precisa ser registrada pelo técnico
+# (/fiber_ctl/onu/add) e recebe o template de WAN da OLT. ZTE = 4. As VSOL
+# (6) registram a ONU sozinhas e não usam template (wan_tpl_pk 0 em todas).
+FABRICANTES_PROVISIONAMENTO = {4}
 
 # A OLT precisa desse intervalo para recarregar antes que reler a ONU
 # traga dado novo — reler imediatamente após o reconnect devolveria o
@@ -98,6 +106,145 @@ async def buscar_onu(
         resultados = [onu for onu in resultados if pppoe_igual(onu, username)]
 
     return {"success": True, "results": [onu.model_dump(mode="json") for onu in resultados]}
+
+
+# ------------------------------------------------------------ provisionar
+
+
+def _primeiro(linha: dict[str, Any], *chaves: str) -> Any:
+    for chave in chaves:
+        valor = linha.get(chave)
+        if valor not in (None, ""):
+            return valor
+    return None
+
+
+def onu_nao_registrada(linha: dict[str, Any], olt: dict[str, Any]) -> dict[str, Any] | None:
+    """Linha de /fiber_ctl/onu/list_unreg no formato da tela. Os nomes dos
+    campos seguem os de /fiber_ctl/onu/add e de /fiber_ctl/onu/list, com
+    alternativas: até 23/11 nenhuma ONU estava pendente para conferir ao vivo."""
+    serial = _primeiro(linha, "onu_serial", "serial", "onu_sn", "sn")
+    slot = _primeiro(linha, "slot_id", "onu_slot_id", "slot")
+    porta = _primeiro(linha, "port_id", "onu_port_id", "pon_id", "port")
+    if serial is None or slot is None or porta is None:
+        return None
+    try:
+        slot, porta = int(slot), int(porta)
+        frame = int(_primeiro(linha, "frame_id", "onu_frame_id") or 1)
+    except (TypeError, ValueError):
+        return None
+    return {
+        "olt_pk": olt.get("olt_pk"),
+        "olt_nome": olt.get("olt_name"),
+        "frame_id": frame,
+        "slot_id": slot,
+        "port_id": porta,
+        "serial": str(serial).strip().upper(),
+        "modelo": str(_primeiro(linha, "onu_model", "model", "onu_type", "type") or ""),
+    }
+
+
+def template_wan_padrao(olt: dict[str, Any], templates: list[dict[str, Any]]) -> int | None:
+    """Template de WAN que a ONU nova recebe: o do mesmo fabricante da OLT,
+    ativo e de WAN (tpl_type 0). Com mais de um (ZTE-C610-01 e ZTE-C610-02),
+    o que tem o nome da OLT sem o prefixo "OLT_". Sem um claro, nenhum."""
+    if olt.get("olt_vendor") not in FABRICANTES_PROVISIONAMENTO:
+        return None
+    candidatos = [
+        t for t in templates
+        if t.get("tpl_type") == 0 and t.get("tpl_enabled") and t.get("tpl_vendor") == olt.get("olt_vendor")
+    ]
+    if len(candidatos) == 1:
+        return int(candidatos[0]["tpl_pk"])
+    nome_olt = re.sub(r"^OLT[_\-\s]*", "", str(olt.get("olt_name") or ""), flags=re.IGNORECASE).upper()
+    pelo_nome = [t for t in candidatos if nome_olt and nome_olt in str(t.get("tpl_name") or "").upper()]
+    return int(pelo_nome[0]["tpl_pk"]) if len(pelo_nome) == 1 else None
+
+
+async def _olts(ctx: AuthContext) -> list[dict[str, Any]]:
+    resposta = await ctx.controllr.call_api_post("/fiber_ctl/olt/list", urlencode({"page": 1, "start": 0, "limit": 100}))
+    if not resposta.success:
+        raise HTTPException(status_code=400, detail=detalhe_erro("Não foi possível consultar as OLTs.", resposta))
+    return [o for o in resposta.results if o.get("olt_enabled") is not False]
+
+
+async def _nao_registradas_da_olt(ctx: AuthContext, olt: dict[str, Any]) -> list[dict[str, Any]]:
+    resposta = await ctx.controllr.call_api_post("/fiber_ctl/onu/list_unreg", urlencode(
+        {"olt_pk": olt["olt_pk"], "frame_id": -1, "slot_id": -1, "port_id": -1, "page": 1, "start": 0, "limit": 100}))
+    if not resposta.success:
+        raise HTTPException(status_code=400, detail=detalhe_erro(
+            f"Não foi possível consultar as ONUs aguardando registro na {olt.get('olt_name')}.", resposta))
+    if resposta.results:
+        # Para conferir os nomes dos campos na primeira ONU real (ver onu_nao_registrada).
+        logger.info("list_unreg %s: campos %s", olt.get("olt_name"), sorted(resposta.results[0]))
+    return [onu for linha in resposta.results if (onu := onu_nao_registrada(linha, olt))]
+
+
+@router.get("/nao-registradas")
+async def listar_nao_registradas(ctx: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    """ONUs ligadas na fibra e ainda não registradas, nas OLTs em que o
+    registro é feito pelo técnico (FABRICANTES_PROVISIONAMENTO)."""
+    olts = [o for o in await _olts(ctx) if o.get("olt_vendor") in FABRICANTES_PROVISIONAMENTO]
+    listas = await asyncio.gather(*(_nao_registradas_da_olt(ctx, olt) for olt in olts))
+    return {"success": True, "results": [onu for lista in listas for onu in lista],
+            "olts": [o.get("olt_name") for o in olts]}
+
+
+class ProvisionarPayload(BaseModel):
+    olt_pk: int
+    slot_id: int
+    port_id: int
+    onu_serial: str = Field(min_length=4, max_length=64)
+    onu_name: str = Field(min_length=1, max_length=64)
+
+
+@router.post("/provisionar")
+async def provisionar_onu(
+    payload: ProvisionarPayload, request: Request, ctx: AuthContext = Depends(get_auth_context)
+) -> dict[str, Any]:
+    # Confere no Controllr que a ONU ainda está aguardando registro naquela
+    # OLT/PON (a tela pode estar velha, ou outro técnico já registrou), e
+    # usa o modelo informado pela própria OLT, não o que veio da tela.
+    olt = next((o for o in await _olts(ctx) if o.get("olt_pk") == payload.olt_pk), None)
+    if olt is None or olt.get("olt_vendor") not in FABRICANTES_PROVISIONAMENTO:
+        raise HTTPException(status_code=400, detail="Esta OLT registra as ONUs sozinha.")
+    serial = payload.onu_serial.strip().upper()
+    pendente = next(
+        (o for o in await _nao_registradas_da_olt(ctx, olt)
+         if o["serial"] == serial and o["slot_id"] == payload.slot_id and o["port_id"] == payload.port_id),
+        None,
+    )
+    if pendente is None:
+        raise HTTPException(status_code=409, detail="Esta ONU não está mais aguardando registro. Atualize a lista.")
+
+    nome = payload.onu_name.strip()
+    resposta = await ctx.controllr.call_api_post("/fiber_ctl/onu/add", urlencode({
+        "olt_pk": payload.olt_pk,
+        "onu_name": nome,
+        "line_id": 0,
+        "srv_id": 0,
+        "onu_model": pendente["modelo"],
+        "slot_id": payload.slot_id,
+        "port_id": payload.port_id,
+        "onu_serial": serial,
+    }))
+    if not resposta.success:
+        raise HTTPException(status_code=400, detail=detalhe_erro("Não foi possível registrar a ONU.", resposta))
+    # Ainda não tem onu_pk nem número na PON: a OLT atribui ao registrar
+    # (aparece em /fiber_ctl/onu/list em cerca de 1 minuto).
+    registrar_auditoria(request, ctx.session, "onu.provisionar", {
+        "olt_pk": payload.olt_pk, "olt_nome": olt.get("olt_name"), "porta": payload.port_id,
+        "slot": payload.slot_id, "serial": serial, "onu_name": nome, "modelo": pendente["modelo"] or None,
+    })
+    return {"success": True, "results": resposta.results}
+
+
+async def _template_da_olt(ctx: AuthContext, olt_pk: int) -> int | None:
+    olt = next((o for o in await _olts(ctx) if o.get("olt_pk") == olt_pk), None)
+    if olt is None or olt.get("olt_vendor") not in FABRICANTES_PROVISIONAMENTO:
+        return None
+    resposta = await ctx.controllr.call_api_post("/fiber_ctl/tpl/list", urlencode({"page": 1, "start": 0, "limit": 200}))
+    return template_wan_padrao(olt, resposta.results) if resposta.success else None
 
 
 @router.post("/{onu_pk}/atualizar")
@@ -288,6 +435,16 @@ async def associar_cliente_onu(
     cpe = next((c for c in cpes if _mesmo_pk(c.get("cpe_pk"), payload.cpe_pk)), None)
     if cpe is None or not _mesmo_pk(cpe.get("client_pk"), payload.client_pk):
         raise HTTPException(status_code=404, detail="Conexão (CPE) não encontrada para este cliente.")
+
+    # ONU recém-registrada numa OLT ZTE vem sem template de WAN: sem ele a
+    # ONU fica sem o PPPoE. Usa o template da OLT, PPPoE (conntype 1) e
+    # gemport 1, como as demais ONUs dessas OLTs. Nas VSOL nada muda.
+    if not payload.wan_tpl_pk:
+        template = await _template_da_olt(ctx, payload.olt_pk)
+        if template:
+            payload.wan_tpl_pk = template
+            payload.wancfg_conntype = payload.wancfg_conntype or 1
+            payload.wancfg_gemport = payload.wancfg_gemport or 1
 
     campos = {
         "olt_pk": payload.olt_pk,

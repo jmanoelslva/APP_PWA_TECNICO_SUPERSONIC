@@ -9,6 +9,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ### Adicionado
 
+- **Registrar ONU nova na OLT:** a tela ONU lista as ONUs ligadas na fibra e ainda não registradas nas OLTs ZTE (C610-01 e C610-02), com serial, OLT, PON e modelo. Tocar numa abre o registro com o nome sugerido ONU_<serial>, que pode ser editado. Depois de registrar, o app aguarda a OLT confirmar (cerca de 1 minuto) e abre a ONU na aba Equipamento para "Registrar cliente". As OLTs VSOL (Sapé e Lagoa Seca) registram a ONU sozinhas e não aparecem na lista. Fica na auditoria como "Registrou ONU na OLT".
+- **Template de WAN na ONU nova:** ao registrar o cliente numa ONU de OLT ZTE ainda sem template, o app usa o template da própria OLT (ZTE-C610-01 ou ZTE-C610-02), com PPPoE, como nas demais ONUs dessas OLTs. Nas VSOL nada muda.
 - **Mensagens prontas para o cliente:** na aba Resumo da OS, três botões lado a lado ("A caminho", "Cheguei" e "Concluído") abrem o WhatsApp do cliente com o texto e o primeiro nome já preenchidos. Aparecem só quando o cliente tem celular e a OS está em aberto.
 - **Rascunho da finalização da OS:** o texto de "O que foi feito" fica salvo no aparelho enquanto o técnico digita e volta ao reabrir a finalização, mesmo se o app recarregar por versão nova ou for fechado pelo sistema. É apagado ao finalizar.
 

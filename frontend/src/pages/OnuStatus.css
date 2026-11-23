@@ -375,6 +375,49 @@
   }
 }
 
+/* ONUs aguardando registro na OLT (OnusAguardando). */
+.onu-aguardando-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.onu-aguardando-topo h2 {
+  margin: 0;
+}
+
+.onu-aguardando-vazio {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--cor-texto-terciario);
+}
+
+.onu-aguardando-lista {
+  position: static;
+  margin-top: 10px;
+  max-height: none;
+  box-shadow: none;
+}
+
+.onu-aguardando-lista .item-duas-linhas {
+  flex: 1;
+  min-width: 0;
+}
+
+.onu-aguardando-rotulo {
+  display: block;
+  font-size: 12px;
+  color: var(--cor-texto-terciario);
+  margin-bottom: 6px;
+}
+
+.onu-aguardando-olt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Registrar cliente nesta ONU (ModalRegistrarCliente). */
 .registrar-onu-resumo {
   display: flex;

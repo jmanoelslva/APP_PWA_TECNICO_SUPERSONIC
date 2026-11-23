@@ -367,6 +367,31 @@ não dispara nada — conferido lendo `window.__capturas` (nenhuma chamada a
     via a janela de Informações de uma ONU já registrada, nunca no
     cadastro inicial.
 
+### 5.2. Provisionar ONU nova (só OLTs ZTE) — 23/11
+
+- As OLTs VSOL (`olt_vendor` 6: OLT_SAPE, OLT_LAGOASECA) registram a ONU
+  sozinhas e **não usam template de WAN** (`wan_tpl_pk` 0 em todas as 558
+  ONUs, 23/11). O registro manual e o template valem só para ZTE
+  (`olt_vendor` 4: OLT_C610-01, OLT_C610-02) — `FABRICANTES_PROVISIONAMENTO`
+  em `routers/onu.py`.
+- `POST /fiber_ctl/onu/list_unreg` (`olt_pk`, `frame_id`/`slot_id`/`port_id`
+  = -1): ONUs ligadas e não registradas. Até 23/11 nenhuma estava pendente,
+  então os nomes dos campos da linha **não foram vistos ao vivo**;
+  `onu_nao_registrada` aceita `onu_serial`/`slot_id`/`port_id`/`onu_model`
+  e alternativas, e o backend registra no log os campos da primeira linha
+  real ("list_unreg <OLT>: campos ...") para conferir.
+- `POST /fiber_ctl/onu/add`: `olt_pk`, `onu_name`, `line_id` 0, `srv_id` 0,
+  `onu_model`, `slot_id`, `port_id`, `onu_serial` → `success`. A ONU aparece
+  em `/fiber_ctl/onu/list` (busca por serial) em cerca de 1 minuto, com
+  `onu_pk` 0 até ter cliente.
+- `POST /fiber_ctl/tpl/list`: templates. WAN = `tpl_type` 0. ZTE tem dois
+  (1002 ZTE-C610-01, 1007 ZTE-C610-02), um por OLT, escolhido pelo nome da
+  OLT sem o prefixo "OLT_". Nas ONUs com cliente dessas OLTs: `wan_tpl_pk`
+  da OLT, `onu_wancfg_conntype` 1 (PPPoE), `onu_wancfg_gemport` 1, VLAN 0
+  (as mais recentes; parte das antigas tem VLAN 100).
+- `apply_wan` (associar cliente) numa ONU ZTE com `wan_tpl_pk` 0 recebe o
+  template da OLT, conntype 1 e gemport 1.
+
 ---
 
 ## 6. Contrato (`/controllrctl/contract/*`)

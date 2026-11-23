@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import type { IconType } from 'react-icons'
-import { LuArrowRight, LuBanknote, LuCircleX, LuClipboardCheck, LuFileSearch, LuLink, LuLocateFixed, LuLogIn, LuMapPin, LuMapPinOff, LuMapPinPlus, LuNetwork, LuPencil, LuPhone, LuPlay, LuRefreshCw, LuRotateCcw, LuRotateCw, LuRouter, LuStickyNote, LuTrash2, LuUndo2, LuWifi } from 'react-icons/lu'
+import { LuArrowRight, LuBanknote, LuCircleX, LuClipboardCheck, LuFileSearch, LuLink, LuLocateFixed, LuLogIn, LuMapPin, LuMapPinOff, LuMapPinPlus, LuNetwork, LuPencil, LuPhone, LuPlus, LuPlay, LuRefreshCw, LuRotateCcw, LuRotateCw, LuRouter, LuStickyNote, LuTrash2, LuUndo2, LuWifi } from 'react-icons/lu'
 import { ApiError, listarAuditoria } from '../api/client'
 import EstadoErro from '../components/EstadoErro'
 import LidoHa from '../components/LidoHa'
@@ -32,6 +32,7 @@ const ACOES: { valor: string; rotulo: string; icone: IconType; cor: string }[] =
   { valor: 'onu.remover', rotulo: 'Removeu ONU', icone: LuTrash2, cor: CORES.erro },
   { valor: 'onu.reiniciar', rotulo: 'Reiniciou ONU', icone: LuRotateCcw, cor: CORES.alerta },
   { valor: 'onu.renomear', rotulo: 'Renomeou ONU', icone: LuPencil, cor: CORES.primaria },
+  { valor: 'onu.provisionar', rotulo: 'Registrou ONU na OLT', icone: LuPlus, cor: CORES.sucesso },
   { valor: 'onu.associar_cliente', rotulo: 'Associou ONU a cliente', icone: LuLink, cor: CORES.cliente },
   { valor: 'onu.atualizar', rotulo: 'Atualizou dados da ONU', icone: LuRefreshCw, cor: CORES.onu },
   { valor: 'cpe.editar_wifi', rotulo: 'Alterou Wi-Fi', icone: LuWifi, cor: CORES.conexao },
@@ -70,6 +71,7 @@ const GRUPOS_ACAO: { grupo: string; opcoes: { valor: string; rotulo: string }[] 
       { valor: 'onu.remover', rotulo: 'Remoções' },
       { valor: 'onu.reiniciar', rotulo: 'Reinícios' },
       { valor: 'onu.renomear', rotulo: 'Renomeações' },
+      { valor: 'onu.provisionar', rotulo: 'Registros na OLT' },
       { valor: 'onu.associar_cliente', rotulo: 'Associações a cliente' },
       { valor: 'onu.atualizar', rotulo: 'Atualizações' },
     ],

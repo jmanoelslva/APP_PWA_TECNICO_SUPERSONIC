@@ -115,6 +115,12 @@ def test_nome_do_anexo_vai_codificado(cliente, monkeypatch):
 PAYLOAD = {"client_pk": 10, "cpe_pk": 20, "olt_pk": 1, "slot_id": 1, "port_id": 2, "onu_id": 3, "onu_serial": "ZTEG1"}
 
 
+OLTS = [{"olt_pk": 1, "olt_name": "OLT_C610-01", "olt_vendor": 4, "olt_enabled": True},
+        {"olt_pk": 2, "olt_name": "OLT_SAPE", "olt_vendor": 6, "olt_enabled": True}]
+TEMPLATES = [{"tpl_pk": 1002, "tpl_name": "ZTE-C610-01", "tpl_vendor": 4, "tpl_type": 0, "tpl_enabled": True},
+             {"tpl_pk": 1007, "tpl_name": "ZTE-C610-02", "tpl_vendor": 4, "tpl_type": 0, "tpl_enabled": True}]
+
+
 def _cpes(monkeypatch, linhas):
     from app.brbyteapi.controllr import AsyncControllr
 
@@ -123,7 +129,12 @@ def _cpes(monkeypatch, linhas):
     async def falso_combo(self, body, model_return=False):
         return SimpleNamespace(success=True, results=linhas)
 
+    # Consultas de OLT/template respondem; só o que grava vai para "aplicados".
     async def falso_post(self, caminho, body):
+        if caminho == "/fiber_ctl/olt/list":
+            return SimpleNamespace(success=True, results=OLTS, errors=None)
+        if caminho == "/fiber_ctl/tpl/list":
+            return SimpleNamespace(success=True, results=TEMPLATES, errors=None)
         aplicados.append(body)
         return SimpleNamespace(success=True, results=[], errors=None)
 
@@ -140,6 +151,70 @@ def test_associar_usa_a_conexao_pedida_mesmo_fora_de_ordem(cliente, monkeypatch)
     ])
     assert cliente.post("/onu/77/associar-cliente", json=PAYLOAD).status_code == 200
     assert "maria.silva" in aplicados[0] and "outro.cliente" not in aplicados[0]
+
+
+MARIA = [{"cpe_pk": 20, "client_pk": 10, "cpe_username": "maria.silva", "cpe_password": "y"}]
+
+
+def test_associar_onu_nova_na_zte_usa_template_da_olt(cliente, monkeypatch):
+    aplicados = _cpes(monkeypatch, MARIA)
+    assert cliente.post("/onu/0/associar-cliente", json={**PAYLOAD, "wan_tpl_pk": 0}).status_code == 200
+    assert "wan_tpl_pk=1002" in aplicados[0]
+    assert "onu_wancfg_conntype=1" in aplicados[0] and "onu_wancfg_gemport=1" in aplicados[0]
+
+
+def test_associar_mantem_template_existente_e_vsol_sem_template(cliente, monkeypatch):
+    aplicados = _cpes(monkeypatch, MARIA)
+    cliente.post("/onu/0/associar-cliente", json={**PAYLOAD, "wan_tpl_pk": 1007})
+    cliente.post("/onu/0/associar-cliente", json={**PAYLOAD, "olt_pk": 2, "wan_tpl_pk": 0})
+    assert "wan_tpl_pk=1007" in aplicados[0]
+    assert "wan_tpl_pk=0" in aplicados[1]
+
+
+def _provisionar(monkeypatch, pendentes):
+    from app.brbyteapi.controllr import AsyncControllr
+
+    gravados = []
+
+    async def falso_post(self, caminho, body):
+        if caminho == "/fiber_ctl/olt/list":
+            return SimpleNamespace(success=True, results=OLTS, errors=None)
+        if caminho == "/fiber_ctl/onu/list_unreg":
+            return SimpleNamespace(success=True, results=pendentes if "olt_pk=1&" in body else [], errors=None)
+        gravados.append((caminho, body))
+        return SimpleNamespace(success=True, results=[], errors=None)
+
+    monkeypatch.setattr(AsyncControllr, "call_api_post", falso_post)
+    return gravados
+
+
+PENDENTE = [{"onu_serial": "ZTEG12345678", "slot_id": 3, "port_id": 5, "onu_model": "ZTE-F601"}]
+PROVISIONAR = {"olt_pk": 1, "slot_id": 3, "port_id": 5, "onu_serial": "zteg12345678", "onu_name": "ONU_ZTEG12345678"}
+
+
+def test_lista_nao_registradas_so_das_zte(cliente, monkeypatch):
+    _provisionar(monkeypatch, PENDENTE)
+    corpo = cliente.get("/onu/nao-registradas").json()
+    assert corpo["olts"] == ["OLT_C610-01"]
+    assert [o["serial"] for o in corpo["results"]] == ["ZTEG12345678"]
+
+
+def test_provisionar_registra_com_modelo_da_olt(cliente, monkeypatch, tmp_path):
+    from app import audit
+
+    monkeypatch.setattr(audit, "AUDIT_LOG_PATH", str(tmp_path / "auditoria.jsonl"))
+    gravados = _provisionar(monkeypatch, PENDENTE)
+    assert cliente.post("/onu/provisionar", json=PROVISIONAR).status_code == 200
+    caminho, body = gravados[0]
+    assert caminho == "/fiber_ctl/onu/add"
+    assert "onu_serial=ZTEG12345678" in body and "onu_model=ZTE-F601" in body and "onu_name=ONU_ZTEG12345678" in body
+
+
+def test_provisionar_recusa_onu_que_nao_esta_pendente(cliente, monkeypatch):
+    gravados = _provisionar(monkeypatch, [])
+    assert cliente.post("/onu/provisionar", json=PROVISIONAR).status_code == 409
+    assert cliente.post("/onu/provisionar", json={**PROVISIONAR, "olt_pk": 2}).status_code == 400
+    assert gravados == []
 
 
 @pytest.mark.parametrize("linhas", [

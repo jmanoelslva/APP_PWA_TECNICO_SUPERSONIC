@@ -132,3 +132,17 @@ describe('endereço, telefone e OS', () => {
     expect(mudancas({ alteracoes: [null, { rotulo: 'X' }] })).toEqual([])
   })
 })
+
+describe('ONU registrada na OLT pelo app', () => {
+  const alvo = { olt_pk: 1, olt_nome: 'OLT_C610-01', slot: 3, porta: 5, serial: 'ZTEG1', onu_name: 'ONU_ZTEG1', modelo: 'ZTE-F601' }
+
+  it('mostra OLT, PON, serial e modelo; o nome é a mudança', () => {
+    expect(detalhes(alvo, 'onu.provisionar')).toEqual([
+      { rotulo: 'OLT', valor: 'OLT_C610-01' },
+      { rotulo: 'ONU', valor: 'PON 3/5' },
+      { rotulo: 'Serial', valor: 'ZTEG1' },
+      { rotulo: 'Modelo', valor: 'ZTE-F601' },
+    ])
+    expect(mudancas(alvo, 'onu.provisionar')).toEqual([{ rotulo: 'Nome', antes: undefined, depois: 'ONU_ZTEG1' }])
+  })
+})
