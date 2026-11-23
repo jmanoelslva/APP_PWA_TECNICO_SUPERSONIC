@@ -390,8 +390,9 @@ não dispara nada — conferido lendo `window.__capturas` (nenhuma chamada a
   OLT sem o prefixo "OLT_". Nas ONUs com cliente dessas OLTs: `wan_tpl_pk`
   da OLT, `onu_wancfg_conntype` 1 (PPPoE), `onu_wancfg_gemport` 1, VLAN 0
   (as mais recentes; parte das antigas tem VLAN 100).
-- `apply_wan` (associar cliente) numa ONU ZTE com `wan_tpl_pk` 0 recebe o
-  template da OLT, conntype 1 e gemport 1.
+- `apply_wan` (associar cliente) mantém o `wan_tpl_pk` da ONU; com 0, a ONU
+  continua sem template (pedido do usuário em 23/11). Com template, conntype 1
+  e gemport 1.
 - O template são parâmetros da ONU (informado pelo usuário em 23/11):
   `apply_wan` aceita template **sem cliente/PPPoE** (`client_pk`/`cpe_pk`/
   `contract_pk` 0, PPPoE vazio). `POST /onu/template` relê a ONU pelo

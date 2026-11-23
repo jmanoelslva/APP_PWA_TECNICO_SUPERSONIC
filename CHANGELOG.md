@@ -5,6 +5,12 @@ Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Alterado
+
+- **Registrar cliente em ONU sem template:** a ONU continua sem template; antes recebia o template da OLT (ZTE-C610-01 ou ZTE-C610-02). O template é escolhido ao registrar a ONU na OLT ou trocado na aba Equipamento.
+
 ## [1.32.0] - 2026-11-23
 
 ### Adicionado

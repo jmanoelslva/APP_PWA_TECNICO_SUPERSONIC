@@ -461,15 +461,14 @@ async def _aplicar_wan(
     if cpe is None or not _mesmo_pk(cpe.get("client_pk"), payload.client_pk):
         raise HTTPException(status_code=404, detail="Conexão (CPE) não encontrada para este cliente.")
 
-    # OLT ZTE: o técnico escolhe o template de WAN (perfil do cliente); só
-    # vale um ativo do fabricante da OLT. ONU recém-registrada vem sem
-    # template: sem escolha, usa o da OLT. Com template, PPPoE (conntype 1)
-    # e gemport 1, como as demais ONUs dessas OLTs. Nas VSOL nada muda.
-    templates, padrao = await _templates_da_olt(ctx, payload.olt_pk)
+    # OLT ZTE: o template de WAN é o da ONU (trocado na aba Equipamento);
+    # só vale um ativo do fabricante da OLT. ONU sem template continua sem
+    # (pedido do usuário em 23/11). Com template, PPPoE (conntype 1) e
+    # gemport 1, como as demais ONUs dessas OLTs. Nas VSOL nada muda.
+    templates, _ = await _templates_da_olt(ctx, payload.olt_pk)
     if templates:
         if payload.wan_tpl_pk and payload.wan_tpl_pk not in {t["pk"] for t in templates}:
             raise HTTPException(status_code=400, detail="Template de WAN não disponível para esta OLT.")
-        payload.wan_tpl_pk = payload.wan_tpl_pk or padrao
         if payload.wan_tpl_pk:
             payload.wancfg_conntype = payload.wancfg_conntype or 1
             payload.wancfg_gemport = payload.wancfg_gemport or 1

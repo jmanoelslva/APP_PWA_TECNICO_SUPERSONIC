@@ -157,11 +157,10 @@ def test_associar_usa_a_conexao_pedida_mesmo_fora_de_ordem(cliente, monkeypatch)
 MARIA = [{"cpe_pk": 20, "client_pk": 10, "cpe_username": "maria.silva", "cpe_password": "y"}]
 
 
-def test_associar_onu_nova_na_zte_usa_template_da_olt(cliente, monkeypatch):
+def test_associar_onu_sem_template_continua_sem(cliente, monkeypatch):
     aplicados = _cpes(monkeypatch, MARIA)
     assert cliente.post("/onu/0/associar-cliente", json={**PAYLOAD, "wan_tpl_pk": 0}).status_code == 200
-    assert "wan_tpl_pk=1002" in aplicados[0]
-    assert "onu_wancfg_conntype=1" in aplicados[0] and "onu_wancfg_gemport=1" in aplicados[0]
+    assert "wan_tpl_pk=0" in aplicados[0]
 
 
 def test_associar_mantem_template_existente_e_vsol_sem_template(cliente, monkeypatch):
@@ -331,8 +330,7 @@ def test_associar_grava_auditoria_com_antes_e_depois(cliente, monkeypatch, tmp_p
     assert ev["acao"] == "onu.associar_cliente" and ev["tecnico"] == "joao"
     assert ev["alvo"] == {"onu_pk": 77, "olt_pk": 1, "olt_nome": "OLT-CENTRO", "porta": 2, "onu_id": 3,
                           "serial": "ZTEG1", "cpe_pk": 20, "cliente": "Maria da Silva", "pppoe": "maria.silva",
-                          "cliente_anterior": "José Souza", "pppoe_anterior": "jose.souza",
-                          "template": "ZTE-C610-01"}
+                          "cliente_anterior": "José Souza", "pppoe_anterior": "jose.souza"}
     assert "segredo" not in str(ev)
 
 

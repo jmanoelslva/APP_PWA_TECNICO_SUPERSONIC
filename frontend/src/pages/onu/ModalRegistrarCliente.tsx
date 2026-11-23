@@ -157,7 +157,7 @@ export default function ModalRegistrarCliente({
         onu_serial: onu.sn,
         frame_id: onu.frame ?? 1,
         wancfg_conntype: onu.wancfg_conntype,
-        // O template é da ONU (aba Equipamento); sem template, o servidor usa o da OLT.
+        // O template é da ONU (aba Equipamento); sem template, continua sem.
         wan_tpl_pk: onu.wan_tpl_pk,
         wancfg_vlanid: onu.wancfg_vlanid,
         wancfg_user_vlanid: onu.wancfg_user_vlanid,
