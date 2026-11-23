@@ -5,18 +5,12 @@ Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
-
-### Alterado
-
-- **Registrar cliente em ONU sem template:** a ONU continua sem template; antes recebia o template da OLT (ZTE-C610-01 ou ZTE-C610-02). O template é escolhido ao registrar a ONU na OLT ou trocado na aba Equipamento.
-
 ## [1.32.0] - 2026-11-23
 
 ### Adicionado
 
 - **Registrar ONU nova na OLT:** a tela ONU lista as ONUs ligadas na fibra e ainda não registradas nas OLTs ZTE (C610-01 e C610-02), com serial, OLT, PON e modelo. Tocar numa abre o registro com o nome sugerido ONU_<serial>, que pode ser editado, e a escolha do template de WAN (já marcado o da OLT). Depois de registrar, o app aguarda a OLT confirmar (cerca de 1 minuto), aplica o template na ONU e abre ela direto no "Registrar cliente". As OLTs VSOL (Sapé e Lagoa Seca) registram a ONU sozinhas e não aparecem na lista. Fica na auditoria como "Registrou ONU na OLT".
-- **Template de WAN da ONU:** nas OLTs ZTE, a aba Equipamento mostra o template da ONU, com o lápis para trocar, com ou sem cliente registrado. A configuração da ONU é reaplicada mantendo cliente e PPPoE. A lista traz os templates de WAN ativos do fabricante da OLT, então um template novo criado no Controllr (para um perfil de cliente específico) aparece sem atualizar o app. Fica na auditoria como "Alterou template da ONU" (antes → depois). O "Registrar cliente" mantém o template da ONU; na ONU sem nenhum, usa o da OLT (ZTE-C610-01 ou ZTE-C610-02). Nas VSOL nada muda.
+- **Template de WAN da ONU:** nas OLTs ZTE, a aba Equipamento mostra o template da ONU, com o lápis para trocar, com ou sem cliente registrado. A configuração da ONU é reaplicada mantendo cliente e PPPoE. A lista traz os templates de WAN ativos do fabricante da OLT, então um template novo criado no Controllr (para um perfil de cliente específico) aparece sem atualizar o app. Fica na auditoria como "Alterou template da ONU" (antes → depois). O "Registrar cliente" mantém o template da ONU; na ONU sem nenhum, ela continua sem. Nas VSOL nada muda.
 - **Mensagens prontas para o cliente:** na aba Resumo da OS, três botões lado a lado ("A caminho", "Cheguei" e "Concluído") abrem o WhatsApp do cliente com o texto e o primeiro nome já preenchidos. Aparecem só quando o cliente tem celular e a OS está em aberto.
 - **Rascunho da finalização da OS:** o texto de "O que foi feito" fica salvo no aparelho enquanto o técnico digita e volta ao reabrir a finalização, mesmo se o app recarregar por versão nova ou for fechado pelo sistema. É apagado ao finalizar.
 
