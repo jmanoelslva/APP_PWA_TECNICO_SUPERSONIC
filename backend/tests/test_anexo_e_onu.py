@@ -1,5 +1,6 @@
 """Anexo de chamado servido com segurança e associação de ONU à conexão certa."""
 
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -186,6 +187,74 @@ def test_templates_da_olt(cliente, monkeypatch):
     assert corpo["padrao"] == 1002
     assert [t["pk"] for t in corpo["results"]] == [1002, 1007]
     assert cliente.get("/onu/templates", params={"olt_pk": 2}).json()["results"] == []
+
+
+ONU_LIDA = {"olt_pk": 1, "olt_name": "OLT_C610-01", "frame_id": 1, "slot_id": 3, "port_id": 1, "onu_id": 1,
+            "onu_serial": "42061D738D98", "onu_pk": 0, "client_pk": 0, "contract_pk": 0, "cpe_pk": 0,
+            "wan_tpl_pk": 0, "onu_wancfg_conntype": 0, "onu_wancfg_gemport": 0, "onu_wancfg_vlanid": 0,
+            "onu_wancfg_pppoe_username": "", "onu_wancfg_pppoe_passwd": ""}
+
+
+def _template(monkeypatch, onus):
+    from app.brbyteapi.controllr import AsyncControllr
+
+    aplicados = []
+
+    async def falso_onu_list(self, body, model_return=False, model_extended=False):
+        return SimpleNamespace(success=True, results=onus)
+
+    async def falso_post(self, caminho, body):
+        if caminho == "/fiber_ctl/olt/list":
+            return SimpleNamespace(success=True, results=OLTS, errors=None)
+        if caminho == "/fiber_ctl/tpl/list":
+            return SimpleNamespace(success=True, results=TEMPLATES, errors=None)
+        aplicados.append((caminho, body))
+        return SimpleNamespace(success=True, results=[], errors=None)
+
+    monkeypatch.setattr(AsyncControllr, "onu_list", falso_onu_list)
+    monkeypatch.setattr(AsyncControllr, "call_api_post", falso_post)
+    return aplicados
+
+
+def test_template_na_onu_sem_cliente(cliente, monkeypatch, tmp_path):
+    from app import audit
+
+    monkeypatch.setattr(audit, "AUDIT_LOG_PATH", str(tmp_path / "auditoria.jsonl"))
+    monkeypatch.setattr(audit, "_ultimo_mes_limpo", None)
+    aplicados = _template(monkeypatch, [ONU_LIDA])
+    corpo = {"olt_pk": 1, "onu_serial": "42061d738d98", "wan_tpl_pk": 1007, "template_anterior": "ZTE-C610-01"}
+    assert cliente.post("/onu/template", json=corpo).status_code == 200
+    caminho, body = aplicados[0]
+    assert caminho == "/fiber_ctl/onu/apply_wan"
+    for parte in ("wan_tpl_pk=1007", "onu_wancfg_conntype=1", "onu_wancfg_gemport=1", "client_pk=0",
+                  "onu_wancfg_pppoe_username=&", "slot_id=3", "onu_id=1"):
+        assert parte in body
+    arquivo = next(tmp_path.glob("auditoria-*.jsonl"))
+    ev = json.loads(arquivo.read_text(encoding="utf-8").splitlines()[-1])
+    assert ev["acao"] == "onu.template"
+    assert ev["alvo"]["template"] == "ZTE-C610-02" and ev["alvo"]["template_anterior"] == "ZTE-C610-01"
+
+
+def test_template_mantem_cliente_e_pppoe_da_onu(cliente, monkeypatch):
+    com_cliente = {**ONU_LIDA, "client_pk": 10, "cpe_pk": 20, "contract_pk": 30, "wan_tpl_pk": 1002,
+                   "onu_wancfg_conntype": 1, "onu_wancfg_gemport": 1, "onu_wancfg_vlanid": 100,
+                   "onu_wancfg_pppoe_username": "maria.silva", "onu_wancfg_pppoe_passwd": "y"}
+    aplicados = _template(monkeypatch, [com_cliente])
+    cliente.post("/onu/template", json={"olt_pk": 1, "onu_serial": "42061D738D98", "wan_tpl_pk": 1007})
+    body = aplicados[0][1]
+    assert "client_pk=10" in body and "cpe_pk=20" in body and "maria.silva" in body and "onu_wancfg_vlanid=100" in body
+
+
+@pytest.mark.parametrize("corpo, onus", [
+    ({"olt_pk": 1, "onu_serial": "42061D738D98", "wan_tpl_pk": 1009}, [ONU_LIDA]),   # outro fabricante
+    ({"olt_pk": 2, "onu_serial": "42061D738D98", "wan_tpl_pk": 1009}, [ONU_LIDA]),   # VSOL
+    ({"olt_pk": 1, "onu_serial": "42061D738D98", "wan_tpl_pk": 1007}, []),           # ONU não achada
+    ({"olt_pk": 1, "onu_serial": "42061D738D98", "wan_tpl_pk": 1007}, [{**ONU_LIDA, "olt_pk": 3}]),  # outra OLT
+])
+def test_template_recusa(cliente, monkeypatch, corpo, onus):
+    aplicados = _template(monkeypatch, onus)
+    assert cliente.post("/onu/template", json=corpo).status_code in (400, 404)
+    assert aplicados == []
 
 
 def _provisionar(monkeypatch, pendentes):

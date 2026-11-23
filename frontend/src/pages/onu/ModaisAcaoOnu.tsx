@@ -3,6 +3,8 @@ import { LuWifi } from 'react-icons/lu'
 import { CORES } from '../../utils/cores'
 import DeslizarParaConfirmar from '../../components/DeslizarParaConfirmar'
 import { useFecharComVoltar } from '../../hooks/useFecharComVoltar'
+import type { TemplateWanDto } from '../../api/client'
+import SeletorTemplate from './SeletorTemplate'
 
 /** Confirmação por deslizar de reiniciar/remover — os dois derrubam o cliente na hora. */
 export function ModalConfirmarAcao({
@@ -101,6 +103,52 @@ export function ModalRenomear({
             onClick={() => onSalvar(novoNome.trim())}
           >
             {salvando ? 'Salvando…' : 'Salvar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Troca o template de WAN da ONU (POST /onu/template); vale com ou sem cliente. */
+export function ModalTemplate({
+  templates,
+  atual,
+  salvando,
+  onSalvar,
+  onCancelar,
+}: {
+  templates: TemplateWanDto[]
+  atual?: number
+  salvando: boolean
+  onSalvar: (pk: number) => void
+  onCancelar: () => void
+}) {
+  // "Voltar" do celular fecha a janela.
+  useFecharComVoltar(true, () => {
+    if (!salvando) onCancelar()
+  })
+  const [escolhido, setEscolhido] = useState<number | undefined>(
+    templates.some((t) => t.pk === atual) ? atual : templates[0]?.pk,
+  )
+  return (
+    <div className="onu-modal-fundo" onClick={() => !salvando && onCancelar()}>
+      <div className="onu-modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Template de WAN</h2>
+        <p className="onu-modal-texto">A configuração da ONU é reaplicada com o template escolhido.</p>
+        <SeletorTemplate templates={templates} escolhido={escolhido} onEscolher={setEscolhido} desabilitado={salvando} />
+        <div className="onu-modal-acoes">
+          <button className="botao botao-secundario" onClick={onCancelar} disabled={salvando}>
+            Cancelar
+          </button>
+          <button
+            aria-busy={salvando}
+            className="botao botao-primario"
+            style={{ '--botao-cor': CORES.onu } as CSSProperties}
+            disabled={salvando || !escolhido || escolhido === atual}
+            onClick={() => escolhido && onSalvar(escolhido)}
+          >
+            {salvando ? 'Aplicando…' : 'Aplicar'}
           </button>
         </div>
       </div>

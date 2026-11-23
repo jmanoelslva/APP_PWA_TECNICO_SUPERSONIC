@@ -443,10 +443,11 @@ class AssociarClientePayload(BaseModel):
     auditoria: ContextoAuditoriaAssociacao | None = None
 
 
-@router.post("/{onu_pk}/associar-cliente")
-async def associar_cliente_onu(
-    onu_pk: int, payload: AssociarClientePayload, request: Request, ctx: AuthContext = Depends(get_auth_context)
-) -> dict[str, Any]:
+async def _aplicar_wan(
+    ctx: AuthContext, payload: AssociarClientePayload, erro: str
+) -> tuple[Any, dict[str, Any], list[dict[str, Any]]]:
+    """apply_wan com o registro completo: cliente/PPPoE da CPE conferida e
+    o template de WAN da OLT. Devolve (resposta, cpe, templates da OLT)."""
     # Reproduz a tela "Informações" da ONU do painel (sem documentação
     # oficial): busca as CPEs do cliente via /aaa_ctl/cpe/list_combo e usa
     # usuário/senha PPPoE da CPE escolhida — não existe cadastro de PPPoE
@@ -501,14 +502,91 @@ async def associar_cliente_onu(
     }
     resposta = await ctx.controllr.call_api_post("/fiber_ctl/onu/apply_wan", urlencode(campos))
     if not resposta.success:
-        raise HTTPException(status_code=400, detail=detalhe_erro("Não foi possível associar a ONU a este cliente.", resposta))
-    # Cliente e PPPoE novos vêm da conexão já conferida acima (Controllr), o
+        raise HTTPException(status_code=400, detail=detalhe_erro(erro, resposta))
+    return resposta, cpe, templates
+
+
+def _nome_template(templates: list[dict[str, Any]], pk: int | None) -> str | None:
+    return next((t["nome"] for t in templates if t["pk"] == pk), None)
+
+
+@router.post("/{onu_pk}/associar-cliente")
+async def associar_cliente_onu(
+    onu_pk: int, payload: AssociarClientePayload, request: Request, ctx: AuthContext = Depends(get_auth_context)
+) -> dict[str, Any]:
+    resposta, cpe, templates = await _aplicar_wan(ctx, payload, "Não foi possível associar a ONU a este cliente.")
+    # Cliente e PPPoE novos vêm da conexão já conferida (Controllr), o
     # anterior e o nome da OLT vêm da tela.
     antes = payload.auditoria or ContextoAuditoriaAssociacao()
     registrar_auditoria(request, ctx.session, "onu.associar_cliente",
                         _alvo_onu(onu_pk, payload.olt_pk, payload.port_id, payload.onu_id, antes.olt_nome,
                                   payload.onu_serial, cpe_pk=payload.cpe_pk,
-                                  template=next((t["nome"] for t in templates if t["pk"] == payload.wan_tpl_pk), None),
+                                  template=_nome_template(templates, payload.wan_tpl_pk),
                                   cliente=cpe.get("client_complete_name"), pppoe=cpe.get("cpe_username"),
                                   cliente_anterior=antes.cliente_anterior, pppoe_anterior=antes.pppoe_anterior))
+    return {"success": True, "results": resposta.results}
+
+
+class TemplatePayload(BaseModel):
+    olt_pk: int
+    onu_serial: str = Field(min_length=4, max_length=64)
+    wan_tpl_pk: int
+    # Só para a auditoria: o template que a tela mostrava antes.
+    template_anterior: str | None = Field(default=None, max_length=128)
+
+
+# Campos da config de WAN que apply_wan recebe com o mesmo nome do
+# /fiber_ctl/onu/list (registro completo, ver CONTROLLR_API_NOTES 5.1).
+_CAMPOS_WAN = (
+    "onu_wancfg_conntype", "onu_wancfg_vlanid", "onu_wancfg_user_vlanid", "onu_wancfg_cos", "onu_wancfg_tcont",
+    "onu_wancfg_gemport", "onu_wancfg_svlan", "onu_wancfg_stpid", "onu_wancfg_scos", "onu_wancfg_pon_profile",
+    "onu_wancfg_pppoe_username", "onu_wancfg_pppoe_passwd", "onu_wancfg_pppoe_svcname", "onu_wancfg_local_ip",
+)
+
+
+def campos_troca_template(onu: dict[str, Any], wan_tpl_pk: int) -> dict[str, Any]:
+    """apply_wan com o registro atual da ONU (cliente e PPPoE, se houver) e
+    só o template trocado. O template são parâmetros da ONU: vai também sem
+    cliente/PPPoE. Com template, PPPoE (conntype 1) e gemport 1, como as
+    demais ONUs das OLTs ZTE."""
+    campos: dict[str, Any] = {
+        chave: onu.get(chave) for chave in ("olt_pk", "frame_id", "slot_id", "port_id", "onu_id", "onu_serial")
+    }
+    for chave in ("client_pk", "contract_pk", "cpe_pk"):
+        campos[chave] = onu.get(chave) or 0
+    for chave in _CAMPOS_WAN:
+        valor = onu.get(chave)
+        campos[chave] = "" if valor is None else valor
+    campos["wan_tpl_pk"] = wan_tpl_pk
+    campos["onu_wancfg_conntype"] = campos["onu_wancfg_conntype"] or 1
+    campos["onu_wancfg_gemport"] = campos["onu_wancfg_gemport"] or 1
+    return campos
+
+
+@router.post("/template")
+async def alterar_template_onu(
+    payload: TemplatePayload, request: Request, ctx: AuthContext = Depends(get_auth_context)
+) -> dict[str, Any]:
+    templates, _ = await _templates_da_olt(ctx, payload.olt_pk)
+    if not templates:
+        raise HTTPException(status_code=400, detail="Esta OLT não usa template de WAN.")
+    if payload.wan_tpl_pk not in {t["pk"] for t in templates}:
+        raise HTTPException(status_code=400, detail="Template de WAN não disponível para esta OLT.")
+    # Relê a ONU no Controllr pelo serial: o registro enviado ao apply_wan
+    # é o dela, não o que a tela tinha (que pode estar velho ou incompleto).
+    serial = payload.onu_serial.strip().upper()
+    lida = await ctx.controllr.onu_list(_corpo_busca_wizard("onu_serial", serial, sort="onu_ponid"))
+    onu = next((o for o in (lida.results if lida.success else [])
+                if str(o.get("onu_serial", "")).upper() == serial and o.get("olt_pk") == payload.olt_pk), None)
+    if onu is None:
+        raise HTTPException(status_code=404, detail="ONU não encontrada nesta OLT.")
+    resposta = await ctx.controllr.call_api_post("/fiber_ctl/onu/apply_wan",
+                                                 urlencode(campos_troca_template(onu, payload.wan_tpl_pk)))
+    if not resposta.success:
+        raise HTTPException(status_code=400, detail=detalhe_erro("Não foi possível aplicar o template na ONU.", resposta))
+    registrar_auditoria(request, ctx.session, "onu.template",
+                        _alvo_onu(onu.get("onu_pk") or 0, payload.olt_pk, onu.get("port_id"), onu.get("onu_id"),
+                                  onu.get("olt_name"), serial, cliente=onu.get("client_name") or None,
+                                  template=_nome_template(templates, payload.wan_tpl_pk),
+                                  template_anterior=payload.template_anterior))
     return {"success": True, "results": resposta.results}

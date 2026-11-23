@@ -65,6 +65,7 @@ export function mudancas(alvo: Alvo, acao?: string): Mudanca[] {
     associacao ? mudou('Cliente', alvo.cliente_anterior, alvo.cliente) : null,
     associacao ? mudou('PPPoE', alvo.pppoe_anterior, alvo.pppoe) : null,
     mudou('Nome', alvo.nome_anterior, alvo.onu_name),
+    mudou('Template', alvo.template_anterior, alvo.template),
     mudou('Criptografia', alvo.wifi_tipo_anterior, alvo.wifi_tipo, rotuloCriptografia),
     // Desde 06/11 a senha do Wi-Fi é gravada; registros antigos só têm "alterada".
     tem(alvo.wifi_senha)

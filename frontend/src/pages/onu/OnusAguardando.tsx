@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { LuCable, LuPlus, LuRefreshCw } from 'react-icons/lu'
-import { ApiError, buscarOnu, listarOnusNaoRegistradas, provisionarOnu, type OnuNaoRegistradaDto } from '../../api/client'
+import {
+  ApiError,
+  aplicarTemplateOnu,
+  buscarOnu,
+  listarOnusNaoRegistradas,
+  provisionarOnu,
+  type OnuNaoRegistradaDto,
+} from '../../api/client'
 import { useToast } from '../../components/Toast/useToast'
 import { useFecharComVoltar } from '../../hooks/useFecharComVoltar'
 import { CORES } from '../../utils/cores'
@@ -15,14 +22,11 @@ const posicao = (onu: OnuNaoRegistradaDto) => `${onu.slot_id}/${onu.port_id}`
 /**
  * ONUs ligadas na fibra e ainda não registradas (só OLTs ZTE; as VSOL
  * registram sozinhas). Tocar numa abre o registro com o nome sugerido
- * ONU_<serial>, editável, e o template de WAN (padrão da OLT); depois de
- * registrada, a tela abre a ONU já no "Registrar cliente" com esse template.
+ * ONU_<serial>, editável, e o template de WAN (padrão da OLT). Quando a
+ * OLT confirma o registro, aplica o template na ONU e abre ela já no
+ * "Registrar cliente".
  */
-export default function OnusAguardando({
-  onRegistrada,
-}: {
-  onRegistrada: (serial: string, templatePk: number | undefined) => void
-}) {
+export default function OnusAguardando({ onRegistrada }: { onRegistrada: (serial: string) => void }) {
   const [lista, setLista] = useState<OnuNaoRegistradaDto[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
@@ -85,9 +89,9 @@ export default function OnusAguardando({
         <ModalProvisionar
           onu={escolhida}
           onFechar={() => setEscolhida(null)}
-          onRegistrada={(serial, templatePk) => {
+          onRegistrada={(serial) => {
             setEscolhida(null)
-            onRegistrada(serial, templatePk)
+            onRegistrada(serial)
           }}
           onDesatualizada={() => {
             setEscolhida(null)
@@ -107,13 +111,12 @@ function ModalProvisionar({
 }: {
   onu: OnuNaoRegistradaDto
   onFechar: () => void
-  onRegistrada: (serial: string, templatePk: number | undefined) => void
+  onRegistrada: (serial: string) => void
   onDesatualizada: () => void
 }) {
   const { toast } = useToast()
   const [nome, setNome] = useState(`ONU_${onu.serial}`)
-  // O template vai para a ONU no "Registrar cliente" (apply_wan precisa do
-  // PPPoE); aqui só é escolhido e levado adiante.
+  // Aplicado assim que a ONU aparece registrada (sem precisar de cliente).
   const { templates, escolhido, setEscolhido, carregando: carregandoTemplates } = useTemplatesWan(onu.olt_pk, undefined)
   const [etapa, setEtapa] = useState<'editar' | 'registrando' | 'aguardando'>('editar')
   const ativo = useRef(true)
@@ -136,8 +139,8 @@ function ModalProvisionar({
       try {
         const resposta = await buscarOnu({ serial: onu.serial })
         if (resposta.results.some((r) => r.sn?.toUpperCase() === onu.serial)) {
-          toast('ONU registrada. Agora registre o cliente nela.', 'sucesso')
-          onRegistrada(onu.serial, escolhido)
+          await aplicarTemplate()
+          onRegistrada(onu.serial)
           return
         }
       } catch {
@@ -147,6 +150,20 @@ function ModalProvisionar({
     if (ativo.current) {
       toast('A OLT ainda não confirmou o registro. Busque pelo serial em alguns minutos.', 'info')
       onFechar()
+    }
+  }
+
+  async function aplicarTemplate() {
+    if (!escolhido) {
+      toast('ONU registrada. Agora registre o cliente nela.', 'sucesso')
+      return
+    }
+    try {
+      await aplicarTemplateOnu({ olt_pk: onu.olt_pk, onu_serial: onu.serial, wan_tpl_pk: escolhido })
+      toast('ONU registrada com o template. Agora registre o cliente nela.', 'sucesso')
+    } catch (excecao) {
+      const motivo = excecao instanceof ApiError ? excecao.message : 'Não foi possível aplicar o template.'
+      toast(`ONU registrada, mas o template não foi aplicado: ${motivo} Altere em Equipamento.`)
     }
   }
 
@@ -184,8 +201,8 @@ function ModalProvisionar({
         </p>
         {etapa === 'aguardando' ? (
           <p className="onu-modal-texto onu-aguardando-olt">
-            <LuRefreshCw size={16} className="onu-girando" aria-hidden /> Registrada. Aguardando a OLT confirmar (cerca de
-            1 minuto)…
+            <LuRefreshCw size={16} className="onu-girando" aria-hidden /> Registrada. Aguardando a OLT confirmar para
+            aplicar o template (cerca de 1 minuto)…
           </p>
         ) : (
           <>

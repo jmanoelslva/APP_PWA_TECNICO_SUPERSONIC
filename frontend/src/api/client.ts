@@ -746,6 +746,16 @@ export function listarTemplatesWan(
   return get('onu/templates', { olt_pk: oltPk })
 }
 
+/** Aplica o template de WAN na ONU (com ou sem cliente): routers/onu.py::alterar_template_onu. */
+export function aplicarTemplateOnu(dados: {
+  olt_pk: number
+  onu_serial: string
+  wan_tpl_pk: number
+  template_anterior?: string
+}): Promise<{ success: boolean; results: unknown }> {
+  return post('onu/template', dados)
+}
+
 export function provisionarOnu(dados: {
   olt_pk: number
   slot_id: number

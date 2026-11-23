@@ -9,12 +9,18 @@ export default function CardDetalhesOnu({
   ocupado,
   onRegistrarCliente,
   onRenomear,
+  templateNome,
+  onAlterarTemplate,
 }: {
   onu: OnuDto
   // Relendo a ONU antes de uma ação: botões de ação ficam desativados.
   ocupado: boolean
   onRegistrarCliente: () => void
   onRenomear: () => void
+  // Nome do template de WAN da ONU; null = sem template. undefined = a OLT
+  // não usa template (VSOL): a linha não aparece.
+  templateNome?: string | null
+  onAlterarTemplate: () => void
 }) {
   const ultimaQueda = formatarUltimaQueda(onu.last_down_time)
   return (
@@ -46,6 +52,17 @@ export default function CardDetalhesOnu({
           </button>
         </div>
       </div>
+      {templateNome !== undefined && (
+        <div className="onu-linha">
+          <span>Template</span>
+          <div className="onu-campo-valor">
+            <strong>{templateNome ?? 'Nenhum'}</strong>
+            <button type="button" onClick={onAlterarTemplate} disabled={ocupado} aria-label="Alterar template de WAN">
+              <LuPencil size={16} />
+            </button>
+          </div>
+        </div>
+      )}
       <div className="onu-linha">
         <span>Serial</span>
         <strong>{onu.sn ?? '—'}</strong>

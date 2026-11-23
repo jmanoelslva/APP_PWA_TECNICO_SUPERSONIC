@@ -133,6 +133,14 @@ describe('endereço, telefone e OS', () => {
   })
 })
 
+describe('template da ONU', () => {
+  it('antes → depois', () => {
+    expect(mudancas({ template: 'ZTE-C610-02', template_anterior: 'ZTE-C610-01' }, 'onu.template')).toEqual([
+      { rotulo: 'Template', antes: 'ZTE-C610-01', depois: 'ZTE-C610-02' },
+    ])
+  })
+})
+
 describe('ONU registrada na OLT pelo app', () => {
   const alvo = { olt_pk: 1, olt_nome: 'OLT_C610-01', slot: 3, porta: 5, serial: 'ZTEG1', onu_name: 'ONU_ZTEG1', modelo: 'ZTE-F601' }
 

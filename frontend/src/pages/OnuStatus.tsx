@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { LuCable, LuPower, LuRefreshCw, LuTrash2 } from 'react-icons/lu'
-import { ApiError, atualizarInfoOnu, buscarOnu, reiniciarOnu, removerOnu, renomearOnu, type OnuDto } from '../api/client'
+import { ApiError, aplicarTemplateOnu, atualizarInfoOnu, buscarOnu, reiniciarOnu, removerOnu, renomearOnu, type OnuDto } from '../api/client'
 import Abas, { useAbaLembrada, type Aba } from '../components/Abas'
 import CabecalhoTela from '../components/CabecalhoTela'
 import PullToRefresh from '../components/PullToRefresh'
@@ -15,9 +15,10 @@ import CardDetalhesOnu from './onu/CardDetalhesOnu'
 import CardsCredenciais from './onu/CardsCredenciais'
 import CardsSinal from './onu/CardsSinal'
 import { formatarTempoDesdeColeta } from './onu/formato'
-import { ModalConfirmarAcao, ModalRenomear } from './onu/ModaisAcaoOnu'
+import { ModalConfirmarAcao, ModalRenomear, ModalTemplate } from './onu/ModaisAcaoOnu'
 import ModalRegistrarCliente from './onu/ModalRegistrarCliente'
 import OnusAguardando from './onu/OnusAguardando'
+import { useTemplatesWan } from './onu/SeletorTemplate'
 import './OnuStatus.css'
 
 type AbaOnu = 'sinal' | 'credenciais' | 'equipamento'
@@ -65,8 +66,12 @@ export default function OnuStatus() {
   const [executandoAcao, setExecutandoAcao] = useState(false)
   const [registrandoCliente, setRegistrandoCliente] = useState(false)
   // ONU acabou de ser registrada na OLT pelo app: ao carregar, abre o
-  // "Registrar cliente" com o template escolhido no registro.
-  const [recemRegistrada, setRecemRegistrada] = useState<{ serial: string; template?: number } | null>(null)
+  // "Registrar cliente".
+  const [recemRegistrada, setRecemRegistrada] = useState<string | null>(null)
+  // Templates de WAN da OLT desta ONU (vazio nas VSOL, que não usam).
+  const { templates } = useTemplatesWan(onu?.olt_pk, undefined)
+  const [alterandoTemplate, setAlterandoTemplate] = useState(false)
+  const [salvandoTemplate, setSalvandoTemplate] = useState(false)
   // Nome atual ao abrir o "Renomear"; null = modal fechado.
   const [renomeando, setRenomeando] = useState<string | null>(null)
   const [salvandoNome, setSalvandoNome] = useState(false)
@@ -93,7 +98,7 @@ export default function OnuStatus() {
       const resposta = await chamada()
       const achada = resposta.results[0] ?? null
       setOnu(achada)
-      if (achada && recemRegistrada && achada.sn?.toUpperCase() === recemRegistrada.serial) setRegistrandoCliente(true)
+      if (achada && recemRegistrada && achada.sn?.toUpperCase() === recemRegistrada) setRegistrandoCliente(true)
     } catch (excecao) {
       setErro(excecao instanceof ApiError ? excecao.message : 'Não foi possível carregar o status da ONU.')
     } finally {
@@ -197,6 +202,31 @@ export default function OnuStatus() {
     }
   }
 
+  const nomeTemplate = (pk?: number) => templates.find((t) => t.pk === pk)?.nome
+
+  async function confirmarTemplate(pk: number) {
+    if (!onu || onu.olt_pk == null || !onu.sn) {
+      toast('Dados insuficientes para alterar o template.')
+      return
+    }
+    setSalvandoTemplate(true)
+    try {
+      await aplicarTemplateOnu({
+        olt_pk: onu.olt_pk,
+        onu_serial: onu.sn,
+        wan_tpl_pk: pk,
+        template_anterior: nomeTemplate(onu.wan_tpl_pk),
+      })
+      setOnu((atual) => (atual ? { ...atual, wan_tpl_pk: pk } : atual))
+      setAlterandoTemplate(false)
+      toast('Template aplicado na ONU.', 'sucesso')
+    } catch (excecao) {
+      toast(excecao instanceof ApiError ? excecao.message : 'Não foi possível aplicar o template na ONU.')
+    } finally {
+      setSalvandoTemplate(false)
+    }
+  }
+
   async function executarAcao() {
     const acao = confirmandoAcao
     const ospo = dadosOspo()
@@ -251,8 +281,8 @@ export default function OnuStatus() {
           <>
             {/* ONU nova registrada: abre ela na aba Equipamento, onde fica "Registrar cliente". */}
             <OnusAguardando
-              onRegistrada={(serial, template) => {
-                setRecemRegistrada({ serial, template })
+              onRegistrada={(serial) => {
+                setRecemRegistrada(serial)
                 setAba('equipamento')
                 setParams({ serial }, { replace: true })
               }}
@@ -311,6 +341,12 @@ export default function OnuStatus() {
                   ocupado={atualizandoAntesDaAcao}
                   onRegistrarCliente={() => abrirDepoisDeReler(() => setRegistrandoCliente(true))}
                   onRenomear={() => abrirDepoisDeReler((atualizada) => setRenomeando(atualizada.name ?? ''))}
+                  templateNome={
+                    templates.length === 0
+                      ? undefined
+                      : (nomeTemplate(onu.wan_tpl_pk) ?? (onu.wan_tpl_pk ? `Template #${onu.wan_tpl_pk}` : null))
+                  }
+                  onAlterarTemplate={() => abrirDepoisDeReler(() => setAlterandoTemplate(true))}
                 />
 
                 <div className="onu-acoes-onu">
@@ -355,10 +391,19 @@ export default function OnuStatus() {
           />
         )}
 
+        {alterandoTemplate && onu && (
+          <ModalTemplate
+            templates={templates}
+            atual={onu.wan_tpl_pk}
+            salvando={salvandoTemplate}
+            onSalvar={confirmarTemplate}
+            onCancelar={() => setAlterandoTemplate(false)}
+          />
+        )}
+
         {registrandoCliente && onu && (
           <ModalRegistrarCliente
             onu={onu}
-            templateInicial={recemRegistrada?.serial === onu.sn?.toUpperCase() ? recemRegistrada?.template : undefined}
             onFechar={() => {
               setRegistrandoCliente(false)
               setRecemRegistrada(null)

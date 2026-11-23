@@ -392,6 +392,11 @@ não dispara nada — conferido lendo `window.__capturas` (nenhuma chamada a
   (as mais recentes; parte das antigas tem VLAN 100).
 - `apply_wan` (associar cliente) numa ONU ZTE com `wan_tpl_pk` 0 recebe o
   template da OLT, conntype 1 e gemport 1.
+- O template são parâmetros da ONU (informado pelo usuário em 23/11):
+  `apply_wan` aceita template **sem cliente/PPPoE** (`client_pk`/`cpe_pk`/
+  `contract_pk` 0, PPPoE vazio). `POST /onu/template` relê a ONU pelo
+  serial e reaplica o registro dela com só o `wan_tpl_pk` trocado
+  (`campos_troca_template`).
 
 ---
 
