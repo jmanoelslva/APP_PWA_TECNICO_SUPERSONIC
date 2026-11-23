@@ -412,6 +412,11 @@
   margin-bottom: 6px;
 }
 
+.onu-template-select {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
 .onu-aguardando-olt {
   display: flex;
   align-items: center;

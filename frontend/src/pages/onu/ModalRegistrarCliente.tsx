@@ -14,6 +14,7 @@ import { useToast } from '../../components/Toast/useToast'
 import { CORES } from '../../utils/cores'
 import { detectarTipoBusca, formatarDocumento } from '../../utils/formatacao'
 import { useFecharComVoltar } from '../../hooks/useFecharComVoltar'
+import SeletorTemplate, { useTemplatesWan } from './SeletorTemplate'
 
 /** Conexão achada pelo login PPPoE no formato da lista de conexões do cliente. */
 function conexaoParaCombo(cpe: CpeDto): CpeComboDto {
@@ -37,10 +38,13 @@ function conexaoParaCombo(cpe: CpeDto): CpeComboDto {
  */
 export default function ModalRegistrarCliente({
   onu,
+  templateInicial,
   onFechar,
   onAssociado,
 }: {
   onu: OnuDto
+  // Escolhido ao registrar a ONU na OLT; sem ele, o atual da ONU ou o da OLT.
+  templateInicial?: number
   onFechar: () => void
   onAssociado: (clientPk: number, clientNome: string | undefined) => void
 }) {
@@ -63,6 +67,13 @@ export default function ModalRegistrarCliente({
   const { toast } = useToast()
 
   const pppoeDaOnu = onu.wancfg_pppoe_username?.trim()
+  // Template de WAN (perfil do cliente) nas OLTs ZTE; nas VSOL a lista vem vazia.
+  const {
+    templates,
+    escolhido: templateEscolhido,
+    setEscolhido: setTemplateEscolhido,
+    carregando: carregandoTemplates,
+  } = useTemplatesWan(onu.olt_pk, templateInicial ?? onu.wan_tpl_pk)
 
   useEffect(() => {
     const termo = busca.trim()
@@ -157,7 +168,7 @@ export default function ModalRegistrarCliente({
         onu_serial: onu.sn,
         frame_id: onu.frame ?? 1,
         wancfg_conntype: onu.wancfg_conntype,
-        wan_tpl_pk: onu.wan_tpl_pk,
+        wan_tpl_pk: templates.length > 0 ? templateEscolhido : onu.wan_tpl_pk,
         wancfg_vlanid: onu.wancfg_vlanid,
         wancfg_user_vlanid: onu.wancfg_user_vlanid,
         wancfg_cos: onu.wancfg_cos,
@@ -337,6 +348,12 @@ export default function ModalRegistrarCliente({
                 </div>
               )}
             </dl>
+            <SeletorTemplate
+              templates={templates}
+              escolhido={templateEscolhido}
+              onEscolher={setTemplateEscolhido}
+              desabilitado={associando}
+            />
             {pppoeDaOnu && cpeEscolhida.cpe_username && cpeEscolhida.cpe_username !== pppoeDaOnu && (
               <p className="registrar-aviso">
                 A ONU está configurada com o PPPoE <strong>{pppoeDaOnu}</strong>, diferente do escolhido.
@@ -350,7 +367,7 @@ export default function ModalRegistrarCliente({
                 aria-busy={associando}
                 className="botao botao-primario"
                 style={{ '--botao-cor': CORES.onu } as CSSProperties}
-                disabled={associando}
+                disabled={associando || carregandoTemplates}
                 onClick={confirmar}
               >
                 {associando ? 'Associando…' : 'Associar'}

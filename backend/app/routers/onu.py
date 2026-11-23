@@ -239,12 +239,36 @@ async def provisionar_onu(
     return {"success": True, "results": resposta.results}
 
 
-async def _template_da_olt(ctx: AuthContext, olt_pk: int) -> int | None:
+def templates_wan_da_olt(olt: dict[str, Any], templates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Templates de WAN que o técnico pode escolher para a ONU desta OLT: os
+    ativos do mesmo fabricante. Um template novo criado no Controllr (ex.:
+    perfil de cliente específico) aparece aqui sem mudar o app."""
+    if olt.get("olt_vendor") not in FABRICANTES_PROVISIONAMENTO:
+        return []
+    return [
+        {"pk": int(t["tpl_pk"]), "nome": str(t.get("tpl_name") or t["tpl_pk"])}
+        for t in templates
+        if t.get("tpl_type") == 0 and t.get("tpl_enabled") and t.get("tpl_vendor") == olt.get("olt_vendor")
+    ]
+
+
+async def _templates_da_olt(ctx: AuthContext, olt_pk: int) -> tuple[list[dict[str, Any]], int | None]:
+    """(templates que podem ser escolhidos, o padrão da OLT). Vazio nas VSOL."""
     olt = next((o for o in await _olts(ctx) if o.get("olt_pk") == olt_pk), None)
     if olt is None or olt.get("olt_vendor") not in FABRICANTES_PROVISIONAMENTO:
-        return None
+        return [], None
     resposta = await ctx.controllr.call_api_post("/fiber_ctl/tpl/list", urlencode({"page": 1, "start": 0, "limit": 200}))
-    return template_wan_padrao(olt, resposta.results) if resposta.success else None
+    if not resposta.success:
+        raise HTTPException(status_code=400, detail=detalhe_erro("Não foi possível consultar os templates.", resposta))
+    return templates_wan_da_olt(olt, resposta.results), template_wan_padrao(olt, resposta.results)
+
+
+@router.get("/templates")
+async def listar_templates_wan(
+    olt_pk: int = Query(...), ctx: AuthContext = Depends(get_auth_context)
+) -> dict[str, Any]:
+    templates, padrao = await _templates_da_olt(ctx, olt_pk)
+    return {"success": True, "results": templates, "padrao": padrao}
 
 
 @router.post("/{onu_pk}/atualizar")
@@ -436,13 +460,16 @@ async def associar_cliente_onu(
     if cpe is None or not _mesmo_pk(cpe.get("client_pk"), payload.client_pk):
         raise HTTPException(status_code=404, detail="Conexão (CPE) não encontrada para este cliente.")
 
-    # ONU recém-registrada numa OLT ZTE vem sem template de WAN: sem ele a
-    # ONU fica sem o PPPoE. Usa o template da OLT, PPPoE (conntype 1) e
-    # gemport 1, como as demais ONUs dessas OLTs. Nas VSOL nada muda.
-    if not payload.wan_tpl_pk:
-        template = await _template_da_olt(ctx, payload.olt_pk)
-        if template:
-            payload.wan_tpl_pk = template
+    # OLT ZTE: o técnico escolhe o template de WAN (perfil do cliente); só
+    # vale um ativo do fabricante da OLT. ONU recém-registrada vem sem
+    # template: sem escolha, usa o da OLT. Com template, PPPoE (conntype 1)
+    # e gemport 1, como as demais ONUs dessas OLTs. Nas VSOL nada muda.
+    templates, padrao = await _templates_da_olt(ctx, payload.olt_pk)
+    if templates:
+        if payload.wan_tpl_pk and payload.wan_tpl_pk not in {t["pk"] for t in templates}:
+            raise HTTPException(status_code=400, detail="Template de WAN não disponível para esta OLT.")
+        payload.wan_tpl_pk = payload.wan_tpl_pk or padrao
+        if payload.wan_tpl_pk:
             payload.wancfg_conntype = payload.wancfg_conntype or 1
             payload.wancfg_gemport = payload.wancfg_gemport or 1
 
@@ -481,6 +508,7 @@ async def associar_cliente_onu(
     registrar_auditoria(request, ctx.session, "onu.associar_cliente",
                         _alvo_onu(onu_pk, payload.olt_pk, payload.port_id, payload.onu_id, antes.olt_nome,
                                   payload.onu_serial, cpe_pk=payload.cpe_pk,
+                                  template=next((t["nome"] for t in templates if t["pk"] == payload.wan_tpl_pk), None),
                                   cliente=cpe.get("client_complete_name"), pppoe=cpe.get("cpe_username"),
                                   cliente_anterior=antes.cliente_anterior, pppoe_anterior=antes.pppoe_anterior))
     return {"success": True, "results": resposta.results}

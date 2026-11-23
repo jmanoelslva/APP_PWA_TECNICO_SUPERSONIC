@@ -734,6 +734,18 @@ export function listarOnusNaoRegistradas(): Promise<{ success: boolean; results:
   return get('onu/nao-registradas')
 }
 
+export interface TemplateWanDto {
+  pk: number
+  nome: string
+}
+
+/** Templates de WAN que podem ir para a ONU desta OLT (vazio nas VSOL) e o padrão da OLT. */
+export function listarTemplatesWan(
+  oltPk: number,
+): Promise<{ success: boolean; results: TemplateWanDto[]; padrao: number | null }> {
+  return get('onu/templates', { olt_pk: oltPk })
+}
+
 export function provisionarOnu(dados: {
   olt_pk: number
   slot_id: number

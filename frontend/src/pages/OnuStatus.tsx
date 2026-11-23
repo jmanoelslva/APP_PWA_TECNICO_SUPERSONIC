@@ -64,6 +64,9 @@ export default function OnuStatus() {
   const [confirmandoAcao, setConfirmandoAcao] = useState<'reiniciar' | 'remover' | null>(null)
   const [executandoAcao, setExecutandoAcao] = useState(false)
   const [registrandoCliente, setRegistrandoCliente] = useState(false)
+  // ONU acabou de ser registrada na OLT pelo app: ao carregar, abre o
+  // "Registrar cliente" com o template escolhido no registro.
+  const [recemRegistrada, setRecemRegistrada] = useState<{ serial: string; template?: number } | null>(null)
   // Nome atual ao abrir o "Renomear"; null = modal fechado.
   const [renomeando, setRenomeando] = useState<string | null>(null)
   const [salvandoNome, setSalvandoNome] = useState(false)
@@ -88,7 +91,9 @@ export default function OnuStatus() {
     setErro(null)
     try {
       const resposta = await chamada()
-      setOnu(resposta.results[0] ?? null)
+      const achada = resposta.results[0] ?? null
+      setOnu(achada)
+      if (achada && recemRegistrada && achada.sn?.toUpperCase() === recemRegistrada.serial) setRegistrandoCliente(true)
     } catch (excecao) {
       setErro(excecao instanceof ApiError ? excecao.message : 'Não foi possível carregar o status da ONU.')
     } finally {
@@ -246,7 +251,8 @@ export default function OnuStatus() {
           <>
             {/* ONU nova registrada: abre ela na aba Equipamento, onde fica "Registrar cliente". */}
             <OnusAguardando
-              onRegistrada={(serial) => {
+              onRegistrada={(serial, template) => {
+                setRecemRegistrada({ serial, template })
                 setAba('equipamento')
                 setParams({ serial }, { replace: true })
               }}
@@ -352,9 +358,14 @@ export default function OnuStatus() {
         {registrandoCliente && onu && (
           <ModalRegistrarCliente
             onu={onu}
-            onFechar={() => setRegistrandoCliente(false)}
+            templateInicial={recemRegistrada?.serial === onu.sn?.toUpperCase() ? recemRegistrada?.template : undefined}
+            onFechar={() => {
+              setRegistrandoCliente(false)
+              setRecemRegistrada(null)
+            }}
             onAssociado={(clientPk, clientNome) => {
               setRegistrandoCliente(false)
+              setRecemRegistrada(null)
               setOnu((atual) => (atual ? { ...atual, client_pk: clientPk, client_name: clientNome } : atual))
               toast('ONU associada ao cliente com sucesso.', 'sucesso')
             }}

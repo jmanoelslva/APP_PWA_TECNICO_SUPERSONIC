@@ -4,6 +4,7 @@ import { ApiError, buscarOnu, listarOnusNaoRegistradas, provisionarOnu, type Onu
 import { useToast } from '../../components/Toast/useToast'
 import { useFecharComVoltar } from '../../hooks/useFecharComVoltar'
 import { CORES } from '../../utils/cores'
+import SeletorTemplate, { useTemplatesWan } from './SeletorTemplate'
 
 // A OLT leva cerca de 1 minuto para a ONU registrada aparecer na lista.
 const INTERVALO_CONFERENCIA_MS = 10_000
@@ -14,10 +15,14 @@ const posicao = (onu: OnuNaoRegistradaDto) => `${onu.slot_id}/${onu.port_id}`
 /**
  * ONUs ligadas na fibra e ainda não registradas (só OLTs ZTE; as VSOL
  * registram sozinhas). Tocar numa abre o registro com o nome sugerido
- * ONU_<serial>, editável; depois de registrada, a tela abre a ONU para
- * "Registrar cliente".
+ * ONU_<serial>, editável, e o template de WAN (padrão da OLT); depois de
+ * registrada, a tela abre a ONU já no "Registrar cliente" com esse template.
  */
-export default function OnusAguardando({ onRegistrada }: { onRegistrada: (serial: string) => void }) {
+export default function OnusAguardando({
+  onRegistrada,
+}: {
+  onRegistrada: (serial: string, templatePk: number | undefined) => void
+}) {
   const [lista, setLista] = useState<OnuNaoRegistradaDto[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
@@ -80,9 +85,9 @@ export default function OnusAguardando({ onRegistrada }: { onRegistrada: (serial
         <ModalProvisionar
           onu={escolhida}
           onFechar={() => setEscolhida(null)}
-          onRegistrada={(serial) => {
+          onRegistrada={(serial, templatePk) => {
             setEscolhida(null)
-            onRegistrada(serial)
+            onRegistrada(serial, templatePk)
           }}
           onDesatualizada={() => {
             setEscolhida(null)
@@ -102,11 +107,14 @@ function ModalProvisionar({
 }: {
   onu: OnuNaoRegistradaDto
   onFechar: () => void
-  onRegistrada: (serial: string) => void
+  onRegistrada: (serial: string, templatePk: number | undefined) => void
   onDesatualizada: () => void
 }) {
   const { toast } = useToast()
   const [nome, setNome] = useState(`ONU_${onu.serial}`)
+  // O template vai para a ONU no "Registrar cliente" (apply_wan precisa do
+  // PPPoE); aqui só é escolhido e levado adiante.
+  const { templates, escolhido, setEscolhido, carregando: carregandoTemplates } = useTemplatesWan(onu.olt_pk, undefined)
   const [etapa, setEtapa] = useState<'editar' | 'registrando' | 'aguardando'>('editar')
   const ativo = useRef(true)
   useEffect(
@@ -129,7 +137,7 @@ function ModalProvisionar({
         const resposta = await buscarOnu({ serial: onu.serial })
         if (resposta.results.some((r) => r.sn?.toUpperCase() === onu.serial)) {
           toast('ONU registrada. Agora registre o cliente nela.', 'sucesso')
-          onRegistrada(onu.serial)
+          onRegistrada(onu.serial, escolhido)
           return
         }
       } catch {
@@ -197,6 +205,12 @@ function ModalProvisionar({
               enterKeyHint="done"
               disabled={etapa === 'registrando'}
             />
+            <SeletorTemplate
+              templates={templates}
+              escolhido={escolhido}
+              onEscolher={setEscolhido}
+              desabilitado={etapa === 'registrando'}
+            />
           </>
         )}
         <div className="onu-modal-acoes">
@@ -207,7 +221,7 @@ function ModalProvisionar({
             <button
               aria-busy={etapa === 'registrando'}
               className="botao botao-primario"
-              disabled={etapa === 'registrando' || !nome.trim()}
+              disabled={etapa === 'registrando' || carregandoTemplates || !nome.trim()}
               onClick={registrar}
             >
               {etapa === 'registrando' ? 'Registrando…' : 'Registrar'}

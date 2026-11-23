@@ -171,6 +171,23 @@ def test_associar_mantem_template_existente_e_vsol_sem_template(cliente, monkeyp
     assert "wan_tpl_pk=0" in aplicados[1]
 
 
+def test_associar_com_template_escolhido(cliente, monkeypatch):
+    aplicados = _cpes(monkeypatch, MARIA)
+    assert cliente.post("/onu/0/associar-cliente", json={**PAYLOAD, "wan_tpl_pk": 1007}).status_code == 200
+    assert "wan_tpl_pk=1007" in aplicados[0]
+    # Template de outro fabricante ou inexistente: recusa sem gravar.
+    assert cliente.post("/onu/0/associar-cliente", json={**PAYLOAD, "wan_tpl_pk": 1009}).status_code == 400
+    assert len(aplicados) == 1
+
+
+def test_templates_da_olt(cliente, monkeypatch):
+    _cpes(monkeypatch, MARIA)
+    corpo = cliente.get("/onu/templates", params={"olt_pk": 1}).json()
+    assert corpo["padrao"] == 1002
+    assert [t["pk"] for t in corpo["results"]] == [1002, 1007]
+    assert cliente.get("/onu/templates", params={"olt_pk": 2}).json()["results"] == []
+
+
 def _provisionar(monkeypatch, pendentes):
     from app.brbyteapi.controllr import AsyncControllr
 
@@ -245,7 +262,8 @@ def test_associar_grava_auditoria_com_antes_e_depois(cliente, monkeypatch, tmp_p
     assert ev["acao"] == "onu.associar_cliente" and ev["tecnico"] == "joao"
     assert ev["alvo"] == {"onu_pk": 77, "olt_pk": 1, "olt_nome": "OLT-CENTRO", "porta": 2, "onu_id": 3,
                           "serial": "ZTEG1", "cpe_pk": 20, "cliente": "Maria da Silva", "pppoe": "maria.silva",
-                          "cliente_anterior": "José Souza", "pppoe_anterior": "jose.souza"}
+                          "cliente_anterior": "José Souza", "pppoe_anterior": "jose.souza",
+                          "template": "ZTE-C610-01"}
     assert "segredo" not in str(ev)
 
 
