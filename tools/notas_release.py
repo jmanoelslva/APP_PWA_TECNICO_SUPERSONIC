@@ -41,6 +41,7 @@ TITULOS = {
     "1.30.1": "ONU certa pelo PPPoE e Antes de finalizar com atalhos direto no item",
     "1.30.2": "Mapa, pinça e listas roladas sem arrastar a janela",
     "1.31.1": "Lista de OS completa, sem limite de 100",
+    "1.32.0": "Registrar ONU nova na OLT com template, login novo e mensagens prontas",
     "1.31.0": "Portas da CTO em grade, liberar porta e conexões da CTO no mapa",
     "1.24.0": "Mensagem e anexo no chamado, atalhos sem texto cortado e botões sem degradê",
     "1.0.0": "Primeira versão estável",
