@@ -119,7 +119,7 @@ export default function MinhasOsHoje({ onResumo }: { onResumo?: (resumo: ResumoD
         <div className="minhas-os-vazio">
           <LuWrench size={20} />
           <span className="minhas-os-vazio-texto">
-            Nenhuma OS sua para hoje.
+            Nenhuma OS hoje.
             {futura?.op_date_sched && (
               <small>
                 Próxima: {quandoOsFutura(futura.op_date_sched)}
@@ -128,11 +128,11 @@ export default function MinhasOsHoje({ onResumo }: { onResumo?: (resumo: ResumoD
             )}
           </span>
           {futura ? (
-            <button type="button" className="minhas-os-vazio-link" onClick={() => abrir(futura)}>
+            <button type="button" className="minhas-os-vazio-link acao-registro" onClick={() => abrir(futura)}>
               Abrir
             </button>
           ) : (
-            <Link to="/suporte" className="minhas-os-vazio-link" viewTransition>
+            <Link to="/suporte" className="minhas-os-vazio-link acao-registro" viewTransition>
               Ver todas as OS
             </Link>
           )}
@@ -153,12 +153,12 @@ export default function MinhasOsHoje({ onResumo }: { onResumo?: (resumo: ResumoD
           )}
           <div className="minhas-os-acoes">
             {rota && (
-              <a href={rota} target="_blank" rel="noreferrer" className="minhas-os-acao">
+              <a href={rota} target="_blank" rel="noreferrer" className="minhas-os-acao acao-ir">
                 <LuNavigation size={20} /> Rota
               </a>
             )}
             {telefone && (
-              <a href={linkLigar(telefone) ?? `tel:${telefone}`} className="minhas-os-acao">
+              <a href={linkLigar(telefone) ?? `tel:${telefone}`} className="minhas-os-acao acao-contato">
                 <LuPhone size={20} /> Ligar
               </a>
             )}
@@ -167,7 +167,7 @@ export default function MinhasOsHoje({ onResumo }: { onResumo?: (resumo: ResumoD
                 href={whatsapp}
                 target="_blank"
                 rel="noreferrer"
-                className="minhas-os-acao minhas-os-acao-whatsapp"
+                className="minhas-os-acao minhas-os-acao-whatsapp acao-contato"
                 aria-label="WhatsApp"
                 title="WhatsApp"
               >

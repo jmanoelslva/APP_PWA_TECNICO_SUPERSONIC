@@ -129,7 +129,7 @@ export default function Suporte() {
   return (
     <PullToRefresh aoAtualizar={carregar}>
       <div className="suporte-tela tela-entrada">
-        <CabecalhoTela icone={LuWrench} cor={CORES.suporte} titulo="OS / Suporte" subtitulo="Ordens de serviço agendadas." />
+        <CabecalhoTela icone={LuWrench} cor={CORES.suporte} titulo="OS / Suporte" />
 
         {carregando && (
           <ul className="suporte-lista">
@@ -278,7 +278,7 @@ export default function Suporte() {
                           href={rota}
                           target="_blank"
                           rel="noreferrer"
-                          className="os-linha-rota"
+                          className="os-linha-rota acao-ir"
                           aria-label="Rota até o cliente"
                           onClick={(evento) => evento.stopPropagation()}
                         >

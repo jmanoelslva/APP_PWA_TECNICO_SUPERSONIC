@@ -54,6 +54,10 @@ router = APIRouter(prefix="/os", tags=["ordem-servico"])
 # exemplo.
 _OPER_DATA_PREENCHIDA = 8
 _OPER_IGUAL_OU_NULO = 7
+# Eventos (mensagens e etapas) dos tickets de até 100 OS numa chamada só.
+# Explícito: sem "limit", o Controllr pode devolver só a 1ª página e, com
+# sort ASC, os eventos mais novos (a finalização) ficariam de fora.
+_LIMITE_EVENTOS = 5000
 
 
 def _condicoes_abertas() -> list[dict[str, Any]]:
@@ -152,7 +156,7 @@ async def _ultimos_eventos(
 
     resposta = await ctx.controllr.call_api_post(
         "/support_ctl/op/list",
-        corpo(where_in("ticket_pk", tickets_pks), sort="op_pk", dir="ASC"),
+        corpo(where_in("ticket_pk", tickets_pks), start=0, limit=_LIMITE_EVENTOS, sort="op_pk", dir="ASC"),
     )
     if not resposta.success:
         return None

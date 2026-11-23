@@ -7,6 +7,31 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Mensagens prontas para o cliente:** na aba Resumo da OS, três botões lado a lado ("A caminho", "Cheguei" e "Concluído") abrem o WhatsApp do cliente com o texto e o primeiro nome já preenchidos. Aparecem só quando o cliente tem celular e a OS está em aberto.
+- **Rascunho da finalização da OS:** o texto de "O que foi feito" fica salvo no aparelho enquanto o técnico digita e volta ao reabrir a finalização, mesmo se o app recarregar por versão nova ou for fechado pelo sistema. É apagado ao finalizar.
+
+### Alterado
+
+- **Login novo:** cabeçalho na cor da marca com "SUPERSONIC", o selo "Área do Técnico" e o logotipo grande no centro; cartão branco sobreposto com campos com ícone, "Lembrar meu usuário", "Esqueci minha senha", botão Entrar com seta e rodapé com "Fale com o suporte" e a versão. Em duas etapas: com o usuário lembrado, abre em "Olá, usuário" pedindo só a senha (o ícone de troca ao lado do nome muda o usuário); sem usuário lembrado, pede o usuário e depois a senha. Feita para o polegar: senha, opções e Entrar ficam na metade de baixo da tela. Com o teclado aberto, a tela rola até o Entrar ficar logo acima dele. "Esqueci minha senha" e "Fale com o suporte" abrem o WhatsApp do suporte com mensagem pronta.
+- **Uma cor para agir e cores por função:** botão principal sempre na cor da marca. Os demais botões de ação ganham fundo suave na cor do que fazem, igual em todo o app: verde para falar com o cliente (Ligar, WhatsApp), azul para ir até o lugar (Rota, Mapa), verde-azulado para a rede do cliente (Conexão, ONU) e laranja-escuro para registros (Chamado, OS, Financeiro, Cliente).
+- **Cor de área só no ícone do cabeçalho:** abas e barra de baixo usam a cor da marca em todas as telas.
+- **Cabeçalho compacto:** título em uma linha, sem a frase explicativa abaixo.
+- **Barra de baixo sempre marcada:** o detalhe da OS marca "OS"; cliente, mapa, offline, ferramentas e as demais telas abertas pelo Início marcam "Início".
+- **Detalhe da OS:** data, serviço, número da OS e do chamado em lista rótulo/valor (uma linha cada), com "Atrasada" em vermelho na data; a próxima etapa na cor da marca.
+- **Cliente:** ícone do cliente na cor da marca; o botão "ONU" some quando a conexão não tem ONU (antes levava a uma tela vazia).
+- **Sessão online:** IP e tempo conectado primeiro, depois concentrador, equipamento, consumo e contrato; códigos em fonte de código, uma linha por campo, sem o usuário PPPoE repetido.
+- **Textos sem quebra:** descrições de Ferramentas encurtadas para caber em uma linha; no Início, "Nenhuma OS hoje.".
+- **Teclado certo:** porta do roteador, porta da CTO e período do financeiro abrem o teclado numérico; a busca de "Registrar cliente" na ONU não põe maiúscula nem corrige o texto (aceita PPPoE).
+- **Sinal fraco:** consultas que passam de 30 segundos sem resposta param e mostram "O sinal está fraco… Tente de novo", em vez de carregar sem fim. Envios e anexos não têm esse limite.
+- **Servidor em atualização:** durante o reinício do servidor, a mensagem passa a ser "Servidor em atualização. Tente de novo em alguns segundos." em vez de "Erro 502 ao chamar …".
+
+### Corrigido
+
+- **Sinal da ONU 0 dBm:** passa a ser "Sem leitura", com selo cinza, em todo o app (OS, Cliente, Conexão, ONU e "Antes de finalizar"). Antes aparecia "0 dBm" com selo verde de sinal bom.
+- **Etapas da OS e chat do chamado:** as consultas de eventos ao Controllr passam a pedir um limite explícito. Sem ele, a resposta podia vir cortada, e uma OS já finalizada continuaria aparecendo como aberta, ou o chat de um chamado longo ficaria incompleto.
+
 ## [1.31.1] - 2026-11-19
 
 ### Corrigido

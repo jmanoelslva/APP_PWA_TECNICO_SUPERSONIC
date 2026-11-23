@@ -9,6 +9,8 @@
 import { buscarTodasPaginas } from '../utils/paginacao'
 
 const API_BASE = '/api'
+const TEMPO_LIMITE_CONSULTA_MS = 30_000
+const STATUS_SERVIDOR_FORA = [502, 503, 504]
 
 export class SessaoExpiradaError extends Error {
   constructor() {
@@ -64,7 +66,11 @@ async function tratarResposta<T>(response: Response, path: string): Promise<T> {
     throw new SessaoExpiradaError()
   }
   if (!response.ok) {
-    let mensagem = `Erro ${response.status} ao chamar ${path}`
+    // 502/503/504 sem corpo JSON: o proxy respondeu porque o backend está
+    // reiniciando (atualização do app) — dura poucos segundos.
+    let mensagem = STATUS_SERVIDOR_FORA.includes(response.status)
+      ? 'Servidor em atualização. Tente de novo em alguns segundos.'
+      : `Erro ${response.status} ao chamar ${path}`
     try {
       const corpo = (await response.json()) as ErroPadrao
       if (corpo.detail) mensagem = corpo.detail
@@ -77,10 +83,22 @@ async function tratarResposta<T>(response: Response, path: string): Promise<T> {
 }
 
 async function get<T>(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
-  const response = await fetch(`${API_BASE}/${path}${querystring(params)}`, {
-    method: 'GET',
-    credentials: 'include',
-  })
+  // Só consultas têm tempo-limite: com sinal fraco a requisição pode ficar
+  // pendurada por minutos. Envios (POST/PUT, anexos) não são cortados, para
+  // não deixar dúvida se a gravação chegou ao Controllr.
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE}/${path}${querystring(params)}`, {
+      method: 'GET',
+      credentials: 'include',
+      signal: AbortSignal.timeout(TEMPO_LIMITE_CONSULTA_MS),
+    })
+  } catch (erro) {
+    if (erro instanceof DOMException && erro.name === 'TimeoutError') {
+      throw new ApiError('O sinal está fraco: a consulta passou de 30 segundos sem resposta. Tente de novo.', 0)
+    }
+    throw erro
+  }
   return tratarResposta<T>(response, path)
 }
 
@@ -622,10 +640,21 @@ export interface BuscaOnuResponse {
   results: OnuDto[]
 }
 
-export function buscarOnu(
+/**
+ * Sinal recebido 0 dBm não é leitura real (uma ONU/OLT nunca recebe 0 dBm):
+ * é o Controllr sem dado. Vira "sem leitura" aqui, na origem, para nenhuma
+ * tela mostrar "0 dBm" com selo de sinal bom.
+ */
+export function normalizarSinalOnu(onu: OnuDto): OnuDto {
+  const semZero = (rx: number | undefined) => (rx === 0 ? undefined : rx)
+  return { ...onu, omddm_rx_power: semZero(onu.omddm_rx_power), olt_omddm_rx_power: semZero(onu.olt_omddm_rx_power) }
+}
+
+export async function buscarOnu(
   filtro: { serial?: string; username?: string; cpe_pk?: number; olt_pk?: number },
 ): Promise<BuscaOnuResponse> {
-  return get<BuscaOnuResponse>('onu/busca', filtro)
+  const resposta = await get<BuscaOnuResponse>('onu/busca', filtro)
+  return { ...resposta, results: (resposta.results ?? []).map(normalizarSinalOnu) }
 }
 
 export function atualizarInfoOnu(

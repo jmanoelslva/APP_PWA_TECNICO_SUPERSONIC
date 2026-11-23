@@ -1,180 +1,235 @@
+/* Login: cabeçalho na cor da marca + cartão branco sobreposto (ordem da
+   especificação de 23/11), em duas etapas (usuário → "Olá, fulano" + senha).
+   A tela ocupa só a área visível (--login-altura/--login-topo, do
+   visualViewport em Login.tsx) e rola por dentro: com o teclado aberto, a
+   tela rola até o Entrar ficar logo acima dele. Pensada para o polegar: a
+   cor da marca ocupa a parte de cima e senha, opções e Entrar ficam embaixo. */
 .login-tela {
-  position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  /* Faixa escura da marca em cima; o formulário sobe como uma folha clara. */
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--login-topo, 0px);
+  height: var(--login-altura, 100dvh);
   background: var(--cor-marca-escura);
   overflow: hidden;
 }
 
-.login-card {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 480px;
-  background: var(--cor-superficie);
-  border-radius: 28px 28px 0 0;
-  padding: 32px 24px calc(24px + env(safe-area-inset-bottom, 0px));
-  text-align: center;
-}
-
-/* Tela larga (tablet/computador): a folha vira um cartão centralizado. */
-@media (min-width: 600px) {
-  .login-tela {
-    justify-content: center;
-    padding: 24px;
-  }
-
-  .login-card {
-    border-radius: 24px;
-    padding: 32px 28px;
-  }
-}
-
-/* Ocupa toda a faixa da marca acima do formulário e centraliza logo e nome nele
-   (antes ficavam colados no formulário, com um vazio grande em cima). O
-   formulário continua no mesmo lugar. */
-.login-marca {
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  width: 100%;
-  max-width: 480px;
+.login-rolagem {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: calc(56px + env(safe-area-inset-top, 0px)) 28px 32px;
-  text-align: center;
 }
 
-@media (min-width: 600px) {
-  .login-marca {
-    flex: none;
+/* ---------- Cabeçalho (cresce e empurra o cartão para baixo) ---------- */
+.login-cabecalho {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: calc(28px + env(safe-area-inset-top, 0px)) 24px 64px;
+  color: var(--cor-branco-fixo);
+}
+
+.login-cabecalho-linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.login-cabecalho-centro {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0 8px;
+}
+
+.login-cabecalho-logo {
+  /* Logotipo horizontal num quadro branco (fica legível sobre a faixa). */
+  box-sizing: border-box;
+  width: 220px;
+  max-width: 100%;
+  height: 112px;
+  padding: 14px 18px;
+  border-radius: 26px;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+  object-fit: contain;
+}
+
+/* Celular baixo ou teclado aberto: logo menor, sem empurrar o formulário. */
+@media (max-height: 640px) {
+  .login-cabecalho-logo {
+    width: 180px;
+    height: 84px;
+    border-radius: 22px;
   }
 }
 
-/* Logotipo horizontal (já traz o nome) num quadro branco sobre a faixa
-   da marca. */
-.login-marca-logo {
-  width: 220px;
-  max-width: 100%;
-  height: auto;
-  aspect-ratio: 1201 / 548;
-  box-sizing: border-box;
-  padding: 10px 14px;
-  border-radius: 18px;
-  background: #ffffff;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
-  object-fit: contain;
-  margin-bottom: 12px;
-}
-
-.login-marca strong {
-  font-size: 28px;
+.login-cabecalho-nome {
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--cor-branco-fixo);
-  line-height: 1.1;
+  letter-spacing: 0.01em;
 }
 
-.login-lembrar {
-  min-height: 44px;
-  margin-top: 8px;
+.login-selo {
+  margin-left: auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--cor-branco-fixo) 55%, transparent);
+  font-size: 12px;
   font-weight: 600;
-  color: var(--cor-texto-secundario);
-  cursor: pointer;
+  white-space: nowrap;
 }
 
-.login-card .login-lembrar input {
-  width: 22px;
-  height: 22px;
-  flex: none;
+.login-titulo {
   margin: 0;
-  padding: 0;
-  border: 0;
-  accent-color: var(--cor-primaria);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
 }
 
-/* Tema claro/escuro já na tela de login, no canto. */
-.login-tema {
-  position: absolute;
-  top: calc(16px + env(safe-area-inset-top, 0px));
-  right: 16px;
-  z-index: 2;
-  width: 48px;
-  height: 48px;
+.login-titulo span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ícone de troca de usuário (item pequeno, ao lado do nome). */
+.login-trocar {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: none;
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--cor-branco-fixo) 25%, transparent);
-  background: color-mix(in srgb, var(--cor-branco-fixo) 8%, transparent);
+  background: color-mix(in srgb, var(--cor-branco-fixo) 14%, transparent);
   color: var(--cor-branco-fixo);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+}
+
+/* ---------- Cartão ---------- */
+.login-cartao {
+  flex: none;
+  width: 100%;
+  max-width: 520px;
+  margin: -32px auto 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px 24px calc(16px + env(safe-area-inset-bottom, 0px));
+  border-radius: 28px 28px 0 0;
+  background: var(--cor-superficie);
 }
 
 .login-campos {
   display: flex;
   flex-direction: column;
+  gap: 20px;
   border: none;
   margin: 0;
   padding: 0;
   min-width: 0;
 }
 
-.login-card form {
+.login-campo {
   display: flex;
   flex-direction: column;
-  text-align: left;
+  gap: 6px;
 }
 
-.login-card label {
+.login-campo label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cor-texto);
+}
+
+.login-entrada {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--cor-texto);
-  margin-top: 12px;
 }
 
-.login-label-icone {
-  font-size: 14px;
+.login-entrada-icone {
+  position: absolute;
+  left: 14px;
+  width: 20px;
+  height: 20px;
+  color: var(--cor-texto-secundario);
+  pointer-events: none;
 }
 
-.login-card input {
-  margin-top: 6px;
-  height: 52px;
+.login-entrada input {
   width: 100%;
+  height: 52px;
+  box-sizing: border-box;
+  padding: 0 16px 0 44px;
   border: 1.5px solid var(--cor-borda);
-  border-radius: 12px;
-  padding: 0 16px;
+  border-radius: 14px;
   font-size: 16px;
   color: var(--cor-texto);
   background: var(--cor-superficie);
 }
 
-.login-card input:focus {
-  outline: none;
-  border-color: var(--cor-primaria);
+.login-entrada input::placeholder {
+  color: var(--cor-texto-terciario);
 }
 
-.login-card input[aria-invalid='true'] {
+.login-entrada input:focus {
+  outline: none;
+  border-color: var(--cor-texto);
+}
+
+.login-entrada input[aria-invalid='true'] {
   border-color: var(--cor-erro);
+}
+
+#senha {
+  padding-right: 52px;
+}
+
+.login-olho {
+  position: absolute;
+  right: 4px;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--cor-texto-secundario);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
 .login-campos:disabled input {
   opacity: 0.6;
 }
 
+/* Usuário escondido na etapa da senha (só para o gerenciador de senhas). */
+.login-usuario-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .login-campo-aviso {
-  margin-top: 4px;
   font-size: 12px;
   font-weight: 600;
   color: var(--cor-erro);
@@ -184,33 +239,47 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-top: 6px;
   font-size: 12px;
   font-weight: 700;
   color: var(--cor-alerta);
 }
 
-.login-campo-senha {
-  position: relative;
-}
-
-.login-campo-senha input {
-  padding-right: 44px;
-}
-
-.login-toggle-senha {
-  position: absolute;
-  top: 6px;
-  right: 0;
-  height: 48px;
-  width: 44px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  color: var(--cor-texto-terciario);
+.login-linha-opcoes {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: -6px;
+}
+
+.login-lembrar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--cor-texto);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.login-lembrar input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--cor-primaria);
+}
+
+.login-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cor-primaria);
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 /* Erro do login (caixa com ícone); bloqueio por tentativas em tom de espera. */
@@ -218,7 +287,6 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin-top: 16px;
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--cor-erro) 40%, transparent);
@@ -244,19 +312,20 @@
 }
 
 .login-btn-entrar {
-  margin-top: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   height: 56px;
-  border: none;
+  padding: 0 16px;
   border-radius: 14px;
-  color: var(--cor-branco-fixo);
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
+  scroll-margin-bottom: 12px;
+  border: none;
   background: var(--cor-primaria-escura);
+  color: var(--cor-branco-fixo);
 }
 
 .login-btn-entrar:disabled {
@@ -279,27 +348,66 @@
   }
 }
 
+/* ---------- Rodapé (preso embaixo do cartão) ---------- */
+.login-rodape {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+}
+
+.login-rodape p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--cor-texto-secundario);
+}
+
+.login-rodape .login-link {
+  font-size: 13px;
+}
+
+.login-rodape-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .login-versao {
-  margin-top: 20px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--cor-texto-terciario);
+  font-size: 12px;
+  color: var(--cor-texto-secundario);
+}
+
+.login-rodape-acoes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .login-btn-instalar {
-  margin-top: 16px;
-  height: 44px;
-  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  border: none;
   border-radius: 10px;
-  border: 1px solid var(--cor-borda);
-  background: var(--cor-fundo);
-  color: var(--cor-texto-secundario);
+  background: transparent;
+  color: var(--cor-texto);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
+  gap: 6px;
+}
+
+.login-tema {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--cor-borda);
+  background: transparent;
+  color: var(--cor-texto);
+  display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 8px;
+  cursor: pointer;
 }

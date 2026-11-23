@@ -81,7 +81,6 @@ export default function Financeiro() {
           icone={LuWallet}
           cor={CORES.financeiro}
           titulo="Financeiro"
-          subtitulo="Faturas e pagamentos em observação."
         />
 
         {carregando && (
@@ -247,7 +246,7 @@ function ModalObservacao({
         ) : (
           <>
             <label>Período (dias)</label>
-            <input type="number" min={1} value={dias} onChange={(e) => setDias(e.target.value)} />
+            <input type="number" inputMode="numeric" pattern="[0-9]*" min={1} value={dias} onChange={(e) => setDias(e.target.value)} />
           </>
         )}
 
