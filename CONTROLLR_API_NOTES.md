@@ -375,11 +375,12 @@ não dispara nada — conferido lendo `window.__capturas` (nenhuma chamada a
   (`olt_vendor` 4: OLT_C610-01, OLT_C610-02) — `FABRICANTES_PROVISIONAMENTO`
   em `routers/onu.py`.
 - `POST /fiber_ctl/onu/list_unreg` (`olt_pk`, `frame_id`/`slot_id`/`port_id`
-  = -1): ONUs ligadas e não registradas. Até 23/11 nenhuma estava pendente,
-  então os nomes dos campos da linha **não foram vistos ao vivo**;
-  `onu_nao_registrada` aceita `onu_serial`/`slot_id`/`port_id`/`onu_model`
-  e alternativas, e o backend registra no log os campos da primeira linha
-  real ("list_unreg <OLT>: campos ...") para conferir.
+  = -1): ONUs ligadas e não registradas. A linha tem o mesmo formato de
+  `/fiber_ctl/onu/list` (`onu_serial`, `frame_id`, `slot_id`, `port_id`,
+  `onu_model`; confirmado ao vivo em 23/11 numa ZTE-F601 na OLT_C610-02).
+- Logo após o `onu/add`, a ONU registrada vem com `onu_state` "working",
+  `onu_pk` 0, sem cliente e **sem template** (`wan_tpl_pk` 0, conntype 0,
+  gemport 0): o template entra no "Registrar cliente" (`apply_wan`).
 - `POST /fiber_ctl/onu/add`: `olt_pk`, `onu_name`, `line_id` 0, `srv_id` 0,
   `onu_model`, `slot_id`, `port_id`, `onu_serial` → `success`. A ONU aparece
   em `/fiber_ctl/onu/list` (busca por serial) em cerca de 1 minuto, com
