@@ -7,29 +7,36 @@ import { linkWhatsapp, separarTelefones } from './formatacao'
 export interface MensagemCliente {
   chave: string
   rotulo: string
-  texto: (nome: string) => string
+  /** nome = primeiro nome do cliente; tecnico = nome do técnico (ou o usuário). */
+  texto: (nome: string, tecnico: string) => string
 }
 
 function saudacao(nome: string): string {
   return nome ? `Olá, ${nome}!` : 'Olá!'
 }
 
+function apresentacao(tecnico: string): string {
+  return tecnico ? `Sou ${tecnico}, técnico da SUPERSONIC,` : 'Sou o técnico da SUPERSONIC'
+}
+
+
+
 export const MENSAGENS_CLIENTE: MensagemCliente[] = [
   {
     chave: 'caminho',
     rotulo: 'A caminho',
-    texto: (nome) => `${saudacao(nome)} Sou o técnico da SUPERSONIC e estou a caminho do seu endereço.`,
+    texto: (nome, tecnico) => `${saudacao(nome)} ${apresentacao(tecnico)} e estou a caminho do seu endereço.`,
   },
   {
     chave: 'cheguei',
     rotulo: 'Cheguei',
-    texto: (nome) => `${saudacao(nome)} Sou o técnico da SUPERSONIC e já estou no seu endereço.`,
+    texto: (nome, tecnico) => `${saudacao(nome)} ${apresentacao(tecnico)} e já estou no seu endereço.`,
   },
   {
     chave: 'concluido',
     rotulo: 'Concluído',
-    texto: (nome) =>
-      `${saudacao(nome)} O atendimento foi concluído e sua internet está funcionando. Qualquer dúvida, fale com a SUPERSONIC.`,
+    texto: (nome, tecnico) =>
+      `${saudacao(nome)} ${apresentacao(tecnico)} e informo que o atendimento foi concluído e sua internet está funcionando. Qualquer dúvida, fale com a SUPERSONIC.`,
   },
 ]
 

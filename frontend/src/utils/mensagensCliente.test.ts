@@ -25,7 +25,13 @@ describe('linkWhatsappComTexto', () => {
 
 describe('MENSAGENS_CLIENTE', () => {
   it('saudação sem nome não fica com vírgula sobrando', () => {
-    expect(MENSAGENS_CLIENTE[0].texto('')).toMatch(/^Olá! /)
-    expect(MENSAGENS_CLIENTE[0].texto('Maria')).toMatch(/^Olá, Maria! /)
+    expect(MENSAGENS_CLIENTE[0].texto('', '')).toMatch(/^Olá! /)
+    expect(MENSAGENS_CLIENTE[0].texto('Maria', '')).toMatch(/^Olá, Maria! /)
+  })
+  it('identifica o técnico pelo nome', () => {
+    expect(MENSAGENS_CLIENTE[0].texto('Maria', 'Pedro')).toBe(
+      'Olá, Maria! Sou Pedro, técnico da SUPERSONIC, e estou a caminho do seu endereço.',
+    )
+    expect(MENSAGENS_CLIENTE[0].texto('Maria', '')).toBe('Olá, Maria! Sou o técnico da SUPERSONIC e estou a caminho do seu endereço.')
   })
 })
