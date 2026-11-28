@@ -12,6 +12,7 @@ import { useToast } from '../components/Toast/useToast'
 import { CORES } from '../utils/cores'
 import { formatarData, formatarMoeda } from '../utils/formatacao'
 import './Financeiro.css'
+import BarraAtendimento from '../components/BarraAtendimento'
 import { useFecharComVoltar } from '../hooks/useFecharComVoltar'
 
 type StatusFatura = 'paga' | 'atrasada' | 'aberta'
@@ -77,11 +78,9 @@ export default function Financeiro() {
     <>
     <PullToRefresh aoAtualizar={carregar}>
       <div className="financeiro-tela tela-entrada">
-        <CabecalhoTela
-          icone={LuWallet}
-          cor={CORES.financeiro}
-          titulo="Financeiro"
-        />
+        <BarraAtendimento tela="financeiro" dados={clientPk ? { clientPk } : null} />
+        {/* Com cliente, a barra do atendimento já marca a tela; sem ele, título. */}
+        {!clientPk && <CabecalhoTela icone={LuWallet} cor={CORES.financeiro} titulo="Financeiro" />}
 
         {carregando && (
           <ul className="financeiro-lista">

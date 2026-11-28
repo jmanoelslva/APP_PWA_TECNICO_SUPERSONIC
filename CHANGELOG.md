@@ -7,9 +7,35 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não lançado]
 
+## [1.33.0] - 2026-11-28
+
 ### Adicionado
 
 - Ícone ao lado do IP do cliente (Sessão online, Rede, cliente, OS e ONU) que abre o roteador no navegador, na porta gravada no acesso ao roteador (443 e 8443 abrem em https).
+- Auditoria: as ações de campo (OS, conexão, ONU e endereço) gravam a localização do técnico, com a precisão e a idade da leitura, e a tela Auditoria mostra o local com link para o mapa. Usa a última leitura do GPS (não atrasa a ação) e só com a permissão de localização já concedida.
+- Conexão › Resumo: cartão "Por que está sem internet?" no topo, que cruza contrato, conexão, sessão PPPoE, estado e sinal da ONU e quedas dos últimos 7 dias e mostra o veredito, o próximo passo e um atalho para ele.
+- Finalizar a OS grava na Auditoria o sinal da ONU e da OLT, lido pelo servidor no Controllr na hora.
+- ONU › Credenciais › Wi-Fi: QR Code para o cliente conectar pela câmera e botão para enviar a rede e a senha pelo WhatsApp.
+- Aviso no topo com a quantidade de anexos aguardando envio (junto do "Sem conexão com a internet" ou sozinho).
+- Configurações: estado da permissão de localização (permitida, negada com o caminho para liberar, ou toque para permitir).
+- Auditoria: busca por cliente, PPPoE, serial ou número da OS, e exportação do que está na tela em CSV (abre no Excel).
+- Barra do atendimento no topo de Cliente, Conexão, ONU, OS e Financeiro, com as cinco telas do cliente atendido (no lugar do título da tela). Trocar por ela não empilha telas, então um Voltar devolve à lista de onde o técnico veio. OS abre direto a OS aberta do cliente ou mostra a escolha quando há mais de uma.
+- Início: "Continuar atendimento" volta direto à última tela do cliente que estava aberto (até 12 horas; some ao sair da conta).
+- Ferramentas › Potência óptica: sinal esperado na ONU pela potência da porta PON, splitters, distância, conectores e emendas, comparado com o sinal lido.
+- Mapa de CTOs: cartão da CTO tocada com ocupação, cor da fibra, distância, conexões online e offline, Rota, grade de portas e "Usar esta CTO" para o cliente buscado (abre a Conexão dele na aba CTO com a CTO e a porta escolhidas, faltando salvar).
+- Mapa de CTOs: ponto na cor da fibra da CTO (tom ABNT); filtro "Só com porta livre"; "Mostrar mais"; distância "em linha reta"; mapa ampliado em tela cheia; busca de CTO pelo nome no mesmo campo do cliente.
+- Mapa de CTOs: cadastrar CTO nova (setor, hub, número, capacidade 8 ou 16, cor e posição pelo GPS, nome no padrão do setor) e editar posição, cor e capacidade. As cores ficam nas 12 do código ABNT; as cores antigas, escolhidas à mão, são reconhecidas pela mais próxima. Depende da liberação de ACL do técnico no Controllr. CTOs sem localização aparecem numa lista para gravar a posição.
+
+### Alterado
+
+- Atalhos que a barra do atendimento substitui saíram das telas (nome do cliente na Conexão, na ONU e na OS, "Detalhes" da ONU e ícones de ONU/Conexão ao lado do PPPoE, "Ver conexão completa" na OS, OS e Financeiro no topo do cliente).
+
+### Corrigido
+
+- Login: bloqueio de tentativas erradas por IPv6 conta o prefixo /64 (trocar de endereço não zera mais o bloqueio), teto de 15 erros por usuário somando todos os endereços e bloqueio de 5 minutos.
+- Login com o Controllr fora do ar ou respondendo errado mostra "Servidor indisponível" e não conta como senha errada.
+- Anexo do chamado com sinal ruim: tempo-limite de 60 segundos em vez de deixar a tela presa.
+- Erros do Controllr aparecem em português claro (sem permissão, porta em uso, campo obrigatório etc.), sem a lista crua.
 
 ## [1.32.3] - 2026-11-28
 

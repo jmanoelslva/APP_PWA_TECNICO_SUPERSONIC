@@ -28,6 +28,8 @@ import CardOnuResumo from './conexao/CardOnuResumo'
 import CardPppoe from './conexao/CardPppoe'
 import CardRede from './conexao/CardRede'
 import CardSessaoOnline from './conexao/CardSessaoOnline'
+import CardDiagnostico from './conexao/CardDiagnostico'
+import BarraAtendimento from '../components/BarraAtendimento'
 import CardWifi from './conexao/CardWifi'
 import { statusDoCliente } from '../utils/statusCliente'
 import './Conexao.css'
@@ -165,7 +167,21 @@ export default function Conexao() {
   return (
     <PullToRefresh aoAtualizar={atualizarTela}>
       <div className="conexao-tela tela-entrada">
-        <CabecalhoTela icone={LuWifi} cor={CORES.conexao} titulo="Conexão" />
+        <BarraAtendimento
+          tela="conexao"
+          dados={
+            cpe
+              ? { clientPk: cpe.client_pk, cliente: cpe.client_complete_name, cpePk: cpe.pk, pppoe: cpe.username }
+              : cpePkParam
+                ? { cpePk: Number(cpePkParam) }
+                : usernameParam
+                  ? { pppoe: usernameParam }
+                  : null
+          }
+        />
+        {/* Título só na tela geral (busca); aberta para um cliente, a barra
+            do atendimento já marca onde se está. */}
+        {!temParametroInicial && <CabecalhoTela icone={LuWifi} cor={CORES.conexao} titulo="Conexão" />}
 
         {!temParametroInicial && (
           <>
@@ -212,8 +228,17 @@ export default function Conexao() {
 
             {aba === 'resumo' && (
               <>
-                {/* Sinal da ONU primeiro: é o que o técnico confere antes de tudo. */}
-                <CardOnuResumo onu={onuResumo} carregando={carregandoOnuResumo} username={cpe.username} />
+                {/* Veredito primeiro: o que está errado e o próximo passo. */}
+                <CardDiagnostico
+                  key={`diag-${cpe.pk}`}
+                  cpe={cpe}
+                  sessao={sessao}
+                  onu={onuResumo}
+                  carregandoOnu={carregandoOnuResumo}
+                  onAba={escolherAba}
+                />
+                {/* Sinal da ONU logo depois: é o que o técnico confere antes de tudo. */}
+                <CardOnuResumo onu={onuResumo} carregando={carregandoOnuResumo} />
                 <CardPppoe key={cpe.pk} cpe={cpe} />
                 <CardSessaoOnline
                   sessao={sessao}

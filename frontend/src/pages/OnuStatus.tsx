@@ -20,6 +20,7 @@ import ModalRegistrarCliente from './onu/ModalRegistrarCliente'
 import OnusAguardando from './onu/OnusAguardando'
 import { useTemplatesWan } from './onu/SeletorTemplate'
 import './OnuStatus.css'
+import BarraAtendimento from '../components/BarraAtendimento'
 
 type AbaOnu = 'sinal' | 'credenciais' | 'equipamento'
 
@@ -272,10 +273,26 @@ export default function OnuStatus() {
   return (
     <PullToRefresh aoAtualizar={recarregar}>
       <div className="onu-tela tela-entrada">
-        <CabecalhoTela icone={LuCable} cor={CORES.onu} titulo="ONU" />
+        <BarraAtendimento
+          tela="onu"
+          dados={
+            onu
+              ? { clientPk: onu.client_pk, cliente: onu.client_name, cpePk: onu.cpe_pk, pppoe: onu.wancfg_pppoe_username || usernameParam || undefined }
+              : usernameParam
+                ? { pppoe: usernameParam }
+                : cpePkParam
+                  ? { cpePk: Number(cpePkParam) }
+                  : null
+          }
+        />
+        {/* Título só na tela geral (busca); aberta para um cliente, a barra
+            do atendimento já marca onde se está. */}
+        {!temParametroInicial && <CabecalhoTela icone={LuCable} cor={CORES.onu} titulo="ONU" />}
 
-        {/* Escolher troca a busca pelo resultado: "Voltar" sai da aba. */}
-        <BuscaOnu onEscolher={(parametros) => setParams(parametros, { replace: true })} />
+        {/* Busca só sem ONU escolhida, como na Conexão: aberta pela barra do
+            atendimento ou por um atalho, a tela já vem com a ONU. Escolher
+            troca a busca pelo resultado: "Voltar" sai da aba. */}
+        {!temParametroInicial && <BuscaOnu onEscolher={(parametros) => setParams(parametros, { replace: true })} />}
 
         {semSelecao && !erro && (
           <>

@@ -86,6 +86,37 @@ def test_limite_login(monkeypatch):
     assert not limite_login.bloqueado("2.2.2.2", "joao")
 
 
+def test_limite_login_ipv6_por_prefixo_e_teto_do_usuario(monkeypatch):
+    monkeypatch.setattr(limite_login, "_falhas", {})
+    monkeypatch.setattr(limite_login, "LOGIN_TENTATIVAS_PAR", 3)
+    monkeypatch.setattr(limite_login, "LOGIN_TENTATIVAS_USUARIO", 5)
+    # Trocar o endereço dentro do mesmo /64 não zera o bloqueio.
+    for final in ("1", "2", "3"):
+        limite_login.falhou(f"2804:7ce0:1:2::{final}", "joao")
+    assert limite_login.bloqueado("2804:7ce0:1:2::99", "joao")
+    assert not limite_login.bloqueado("2804:7ce0:1:3::1", "joao")
+    # Somando IPs diferentes, o teto do usuário bloqueia.
+    limite_login.falhou("1.1.1.1", "joao")
+    limite_login.falhou("2.2.2.2", "joao")
+    assert limite_login.bloqueado("3.3.3.3", "joao")
+    assert limite_login.origem("::ffff:1.2.3.4") == "1.2.3.4"
+
+
+def test_controllr_indisponivel_no_login_nao_conta_tentativa(monkeypatch):
+    from app.main import app
+    from app.routers import auth
+
+    monkeypatch.setattr(limite_login, "_falhas", {})
+
+    async def fora_do_ar(url, usuario, senha):
+        return SimpleNamespace(success=False, cookie_header=None, indisponivel=True)
+
+    monkeypatch.setattr(auth.ControllrLogin, "login", fora_do_ar)
+    r = TestClient(app).post("/auth/login", json={"username": "joao", "password": "x"}, headers={"X-Real-IP": "9.9.9.9"})
+    assert r.json() == {**r.json(), "success": False, "message": "Servidor indisponível. Tente de novo em instantes."}
+    assert limite_login._falhas == {}
+
+
 def test_login_bloqueado_nem_chama_o_controllr(monkeypatch):
     from app.main import app
     from app.routers import auth
@@ -95,7 +126,7 @@ def test_login_bloqueado_nem_chama_o_controllr(monkeypatch):
 
     async def falso_login(url, usuario, senha):
         chamadas.append(usuario)
-        return SimpleNamespace(success=False, cookie_header=None)
+        return SimpleNamespace(success=False, cookie_header=None, indisponivel=False)
 
     monkeypatch.setattr(auth.ControllrLogin, "login", falso_login)
     c = TestClient(app)
@@ -394,3 +425,36 @@ def test_nome_do_usuario_pelo_username():
     assert nome_do_usuario(registros, "pedrocarlos") == "Pedro Carlos"
     assert nome_do_usuario(registros, "semnome") == ""
     assert nome_do_usuario(registros, "outro") == ""
+
+
+
+@pytest.mark.parametrize("valor,esperado", [
+    ("-9.665800;-35.735300;12;30", {"lat": -9.6658, "lng": -35.7353, "precisao_m": 12, "idade_s": 30}),
+    (None, None),
+    ("abc", None),
+    ("-9.6;-35.7;12", None),
+    ("91;-35.7;12;30", None),
+    ("-9.6;-35.7;12;-1", None),
+])
+def test_ler_localizacao(valor, esperado):
+    assert audit.ler_localizacao(req({"X-Localizacao": valor} if valor else None)) == esperado
+
+
+def test_localizacao_so_em_acao_de_campo(pasta):
+    r = req({"X-Localizacao": "-9.6658;-35.7353;12;30"})
+    audit.registrar_auditoria(r, sessao(), "os.iniciar", {"os": 1})
+    audit.registrar_auditoria(r, sessao(), "financeiro.liberacao", {})
+    audit.registrar_auditoria(req(), sessao(), "onu.reiniciar", {})
+    eventos, _ = audit.consultar()
+    por_acao = {e["acao"]: e for e in eventos}
+    assert por_acao["os.iniciar"]["local"]["precisao_m"] == 12
+    assert "local" not in por_acao["financeiro.liberacao"]
+    assert por_acao["onu.reiniciar"]["local"] is None
+
+
+def test_busca_por_cliente_ou_chamado(pasta):
+    audit.registrar_auditoria(req(), sessao(), "os.iniciar", {"ticket_pk": 123, "cliente": "Maria da Silva"})
+    audit.registrar_auditoria(req(), sessao(), "onu.reiniciar", {"pppoe": "joao@supersonic"})
+    assert [e["acao"] for e in audit.consultar(busca="maria")[0]] == ["os.iniciar"]
+    assert [e["acao"] for e in audit.consultar(busca="#123")[0]] == ["os.iniciar"]
+    assert [e["acao"] for e in audit.consultar(busca="JOAO@")[0]] == ["onu.reiniciar"]

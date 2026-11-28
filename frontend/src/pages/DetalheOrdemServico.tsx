@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { LuBan, LuBox, LuCamera, LuChevronRight, LuCircleCheck, LuCopy, LuEye, LuEyeOff, LuHouse, LuLocateFixed, LuMap, LuMapPin, LuMessageCircle, LuNavigation, LuPaperclip, LuPencil, LuPhone, LuPlay, LuUser, LuWifi } from 'react-icons/lu'
+import { LuBan, LuBox, LuCamera, LuChevronRight, LuCircleCheck, LuCopy, LuEye, LuEyeOff, LuHouse, LuLocateFixed, LuMap, LuMapPin, LuMessageCircle, LuNavigation, LuPaperclip, LuPencil, LuPhone, LuPlay } from 'react-icons/lu'
 import ModalEditarEndereco, { type AbaEndereco } from '../components/ModalEditarEndereco'
 import Abas, { useAbaLembrada, type Aba } from '../components/Abas'
 import LidoHa from '../components/LidoHa'
@@ -14,6 +14,7 @@ import { MENSAGENS_CLIENTE, linkWhatsappComTexto, primeiroNome } from '../utils/
 import { nomeExibicao } from '../utils/nomeTecnico'
 import { useSessao } from '../auth/useSessao'
 import Skeleton from '../components/Skeleton'
+import BarraAtendimento from '../components/BarraAtendimento'
 import IpComAcesso from '../components/IpComAcesso'
 import EstadoErro from '../components/EstadoErro'
 import { useToast } from '../components/Toast/useToast'
@@ -708,6 +709,20 @@ function DetalheOrdemServicoConteudo() {
   return (
     <PullToRefresh aoAtualizar={carregar}>
       <div className="detalhe-ordem-tela tela-entrada">
+        <BarraAtendimento
+          tela="os"
+          dados={
+            osAtual
+              ? {
+                  clientPk: osAtual.client_pk,
+                  cliente: osAtual.client_complete_name,
+                  ticketPk: pk,
+                  cpePk: cpe?.pk,
+                  pppoe: cpe?.username,
+                }
+              : { ticketPk: pk }
+          }
+        />
 
         {carregando && (
           <div className="detalhe-ordem-card">
@@ -998,11 +1013,6 @@ function DetalheOrdemServicoConteudo() {
                       <LidoHa momento={onuLidaEm} />
                     </p>
                   )}
-                  {cpe?.pk && (
-                    <Link to={`/conexao?cpe_pk=${cpe.pk}`} className="botao botao-secundario botao-largo acao-rede detalhe-ordem-ver-conexao" viewTransition>
-                      <LuWifi size={18} /> Ver conexão completa
-                    </Link>
-                  )}
                 </div>
               </>
             )}
@@ -1286,13 +1296,8 @@ function DetalheOrdemServicoConteudo() {
                   <h2>Cliente</h2>
                   <div className="detalhe-ordem-linha-campo">
                     <span>Nome</span>
-                    {osAtual.client_pk ? (
-                      <Link to={`/clientes/${osAtual.client_pk}`} className="detalhe-ordem-link" viewTransition>
-                        <LuUser size={16} /> {osAtual.client_complete_name ?? '—'}
-                      </Link>
-                    ) : (
-                      <strong>{osAtual.client_complete_name ?? '—'}</strong>
-                    )}
+                    {/* Abrir o cliente: barra do atendimento, no topo. */}
+                    <strong>{osAtual.client_complete_name ?? '—'}</strong>
                   </div>
                   {telefone && (
                     <>

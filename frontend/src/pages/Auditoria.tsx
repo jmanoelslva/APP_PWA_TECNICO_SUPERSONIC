@@ -1,11 +1,12 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import type { IconType } from 'react-icons'
-import { LuArrowRight, LuBanknote, LuCircleX, LuClipboardCheck, LuFileSearch, LuLink, LuLocateFixed, LuLogIn, LuMapPin, LuMapPinOff, LuMapPinPlus, LuNetwork, LuPencil, LuPhone, LuPlus, LuPlay, LuRefreshCw, LuRotateCcw, LuRotateCw, LuRouter, LuStickyNote, LuTrash2, LuUndo2, LuWifi } from 'react-icons/lu'
-import { ApiError, listarAuditoria } from '../api/client'
+import { LuArrowRight, LuBanknote, LuDownload, LuCircleX, LuClipboardCheck, LuFileSearch, LuLink, LuLocateFixed, LuLogIn, LuMapPin, LuMapPinOff, LuMapPinPlus, LuNetwork, LuPencil, LuPhone, LuPlus, LuPlay, LuRefreshCw, LuRotateCcw, LuRotateCw, LuRouter, LuStickyNote, LuTrash2, LuUndo2, LuWifi } from 'react-icons/lu'
+import { ApiError, listarAuditoria, type EventoAuditoria } from '../api/client'
 import EstadoErro from '../components/EstadoErro'
 import LidoHa from '../components/LidoHa'
 import FiltroSegmentado, { type OpcaoSegmentada } from '../components/FiltroSegmentado'
 import CabecalhoTela from '../components/CabecalhoTela'
+import { auditoriaParaCsv, baixarArquivo } from '../utils/auditoriaCsv'
 import PullToRefresh from '../components/PullToRefresh'
 import EstadoVazio from '../components/EstadoVazio'
 import Skeleton from '../components/Skeleton'
@@ -20,6 +21,22 @@ import {
 } from '../utils/auditoria'
 import { CORES } from '../utils/cores'
 import './Auditoria.css'
+
+/** Onde o técnico estava na ação de campo (GPS do celular, pode ter idade). */
+function LocalDoTecnico({ local }: { local: EventoAuditoria['local'] }) {
+  if (!local) return <span className="auditoria-local-sem">Sem localização</span>
+  const idade = local.idade_s < 60 ? `${local.idade_s} s` : `${Math.round(local.idade_s / 60)} min`
+  return (
+    <a
+      className="auditoria-local"
+      href={`https://www.google.com/maps/search/?api=1&query=${local.lat},${local.lng}`}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <LuMapPin size={14} /> Local ± {local.precisao_m} m · leitura de {idade} antes
+    </a>
+  )
+}
 
 /**
  * Quem fez o quê, de qual IP: ações que mexem no cadastro e no equipamento
@@ -41,6 +58,8 @@ const ACOES: { valor: string; rotulo: string; icone: IconType; cor: string }[] =
   { valor: 'cpe.localizacao', rotulo: 'Alterou localização do equipamento', icone: LuLocateFixed, cor: CORES.endereco },
   { valor: 'cpe.editar_cto', rotulo: 'Alterou CTO da conexão', icone: LuNetwork, cor: CORES.conexao },
   { valor: 'cpe.editar_observacao', rotulo: 'Alterou observação da conexão', icone: LuStickyNote, cor: CORES.conexao },
+  { valor: 'cto.criar', rotulo: 'Cadastrou CTO', icone: LuMapPinPlus, cor: CORES.conexao },
+  { valor: 'cto.editar', rotulo: 'Editou CTO', icone: LuNetwork, cor: CORES.conexao },
   { valor: 'endereco.criar', rotulo: 'Criou endereço', icone: LuMapPinPlus, cor: CORES.endereco },
   { valor: 'endereco.editar', rotulo: 'Editou endereço', icone: LuMapPin, cor: CORES.endereco },
   { valor: 'endereco.excluir', rotulo: 'Excluiu endereço', icone: LuMapPinOff, cor: CORES.erro },
@@ -90,6 +109,14 @@ const GRUPOS_ACAO: { grupo: string; opcoes: { valor: string; rotulo: string }[] 
     ],
   },
   {
+    grupo: 'CTO',
+    opcoes: [
+      { valor: 'cto.', rotulo: 'Tudo da CTO' },
+      { valor: 'cto.criar', rotulo: 'Cadastros' },
+      { valor: 'cto.editar', rotulo: 'Edições (posição, cor, capacidade)' },
+    ],
+  },
+  {
     grupo: 'Cliente',
     opcoes: [
       { valor: 'endereco.', rotulo: 'Endereços' },
@@ -120,7 +147,7 @@ const PERIODOS: OpcaoSegmentada<PeriodoAuditoria>[] = [
   { chave: 'periodo', rotulo: 'Período' },
 ]
 
-const FILTRO_VAZIO = { tecnico: '', acao: '', de: '', ate: '' }
+const FILTRO_VAZIO = { tecnico: '', acao: '', de: '', ate: '', busca: '' }
 
 const PASSO = 100
 
@@ -130,6 +157,7 @@ function plural(n: number): string {
 
 export default function Auditoria() {
   const [tecnico, setTecnico] = useState('')
+  const [busca, setBusca] = useState('')
   const [periodo, setPeriodo] = useState<PeriodoAuditoria>('tudo')
   const [escolhido, setEscolhido] = useState({ de: '', ate: '' })
   const [filtro, setFiltro] = useState(FILTRO_VAZIO)
@@ -149,6 +177,7 @@ export default function Auditoria() {
       acao: filtro.acao || undefined,
       de: filtro.de || undefined,
       ate: filtro.ate || undefined,
+      busca: filtro.busca || undefined,
       limite,
     })
       .then((r) => {
@@ -180,6 +209,20 @@ export default function Auditoria() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tecnico])
 
+  useEffect(() => {
+    const valor = busca.trim()
+    if (valor === filtro.busca) return
+    const temporizador = setTimeout(() => mudarFiltro({ busca: valor }), 400)
+    return () => clearTimeout(temporizador)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busca])
+
+  function exportarCsv() {
+    const eventos = dias?.flatMap((d) => d.eventos) ?? []
+    const csv = auditoriaParaCsv(eventos, (a) => POR_ACAO[a]?.rotulo ?? a)
+    baixarArquivo(`auditoria-${new Date().toISOString().slice(0, 10)}.csv`, csv)
+  }
+
   function escolherPeriodo(novo: PeriodoAuditoria, datas = escolhido) {
     setPeriodo(novo)
     mudarFiltro(datasDoPeriodo(novo, datas))
@@ -193,13 +236,14 @@ export default function Auditoria() {
 
   function limparFiltros() {
     setTecnico('')
+    setBusca('')
     setPeriodo('tudo')
     setEscolhido({ de: '', ate: '' })
     setLimite(PASSO)
     setFiltro(FILTRO_VAZIO)
   }
 
-  const comFiltro = !!(filtro.tecnico || filtro.acao || filtro.de || filtro.ate)
+  const comFiltro = !!(filtro.tecnico || filtro.acao || filtro.de || filtro.ate || filtro.busca)
   const totalEventos = dias?.reduce((soma, dia) => soma + dia.eventos.length, 0) ?? 0
 
   return (
@@ -253,14 +297,33 @@ export default function Auditoria() {
               autoCorrect="off"
               spellCheck={false}
             />
+            <input
+              className="campo auditoria-busca"
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Cliente, PPPoE, serial ou nº da OS"
+              aria-label="Cliente, PPPoE, serial ou número da OS"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="search"
+            />
           </div>
           <div className="auditoria-resumo">
             <span>{dias ? plural(totalEventos) : ''}</span>
-            {comFiltro && (
-              <button type="button" className="auditoria-limpar" onClick={limparFiltros}>
-                Limpar filtros
-              </button>
-            )}
+            <span className="auditoria-resumo-acoes">
+              {comFiltro && (
+                <button type="button" className="auditoria-limpar" onClick={limparFiltros}>
+                  Limpar filtros
+                </button>
+              )}
+              {totalEventos > 0 && (
+                <button type="button" className="auditoria-limpar" onClick={exportarCsv}>
+                  <LuDownload size={16} /> CSV
+                </button>
+              )}
+            </span>
           </div>
         </div>
 
@@ -308,6 +371,7 @@ export default function Auditoria() {
                             {ev.tecnico} · {hora(ev.quando)}
                           </span>
                           <span>IP {ev.ip}</span>
+                          {ev.local !== undefined && <LocalDoTecnico local={ev.local} />}
                         </div>
                       </div>
 

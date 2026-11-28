@@ -95,6 +95,7 @@ export function detalhes(alvo: Alvo, acao?: string): Detalhe[] {
     // ONU registrada pelo app: ainda sem número na PON.
     itens.push({ rotulo: 'ONU', valor: `PON ${alvo.slot}/${alvo.porta}` })
   }
+  if (tem(alvo.cto)) itens.push({ rotulo: 'CTO', valor: texto(alvo.cto) })
   if (tem(alvo.serial)) itens.push({ rotulo: 'Serial', valor: texto(alvo.serial) })
   if (tem(alvo.modelo)) itens.push({ rotulo: 'Modelo', valor: texto(alvo.modelo) })
   if (associacao) return itens
