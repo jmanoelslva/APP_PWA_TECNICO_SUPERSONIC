@@ -14,7 +14,6 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Ícone ao lado do IP do cliente (Sessão online, Rede, cliente, OS e ONU) que abre o roteador no navegador, na porta gravada no acesso ao roteador (443 e 8443 abrem em https).
 - Auditoria: as ações de campo (OS, conexão, ONU e endereço) gravam a localização do técnico, com a precisão e a idade da leitura, e a tela Auditoria mostra o local com link para o mapa. Usa a última leitura do GPS (não atrasa a ação) e só com a permissão de localização já concedida.
 - Conexão › Resumo: cartão "Por que está sem internet?" no topo, que cruza contrato, conexão, sessão PPPoE, estado e sinal da ONU e quedas dos últimos 7 dias e mostra o veredito, o próximo passo e um atalho para ele.
-- Finalizar a OS grava na Auditoria o sinal da ONU e da OLT, lido pelo servidor no Controllr na hora.
 - ONU › Credenciais › Wi-Fi: QR Code para o cliente conectar pela câmera e botão para enviar a rede e a senha pelo WhatsApp.
 - Aviso no topo com a quantidade de anexos aguardando envio (junto do "Sem conexão com a internet" ou sozinho).
 - Configurações: estado da permissão de localização (permitida, negada com o caminho para liberar, ou toque para permitir).
