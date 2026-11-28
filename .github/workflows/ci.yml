@@ -1,6 +1,6 @@
 # Confere cada envio antes de ir para o servidor: build + testes do
 # frontend e testes do backend, nas mesmas versões do servidor
-# (Node 24, Python 3.11). Não publica nada — o deploy continua pelo
+# (Node 24, Python 3.13). Não publica nada — o deploy continua pelo
 # install.sh no servidor.
 name: CI
 
@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r requirements.txt pytest httpx
